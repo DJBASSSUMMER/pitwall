@@ -1,0 +1,91 @@
+/* Pitwall add-in. Every rule is scoped under .pw-root so it can't affect MyGeotab's own UI. */
+.pw-root{
+  --bg:#EDF0F3; --surface:#FFFFFF; --ink:#14202C; --soft:#3A4653; --muted:#5E6A77; --line:#D6DCE2; --line2:#E8ECF0;
+  --go:#14202C; --focus:#1F5FBF;
+  --unplugged:#C21F32; --voltage:#B26A00; --gps:#1F5FBF; --notinstalled:#6A44B8; --seasonal:#5C7A8A; --unknown:#8794A1;
+  background:var(--bg); color:var(--ink);
+  font-family:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif; font-size:15px; line-height:1.45;
+  font-variant-numeric:tabular-nums; padding:28px 32px 36px; box-sizing:border-box; min-height:100vh;
+}
+.pw-root *{box-sizing:border-box}
+.pw-root button,.pw-root input{font:inherit; color:inherit}
+.pw-root :focus-visible{outline:2px solid var(--focus); outline-offset:2px}
+.pw-c-unplugged{--c:var(--unplugged)} .pw-c-voltage{--c:var(--voltage)} .pw-c-gps{--c:var(--gps)}
+.pw-c-notinstalled{--c:var(--notinstalled)} .pw-c-seasonal{--c:var(--seasonal)} .pw-c-unknown{--c:var(--unknown)}
+
+/* Header */
+.pw-head{display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; gap:16px 24px; margin-bottom:22px}
+.pw-db{margin:0 0 6px; color:var(--muted); font-weight:500; display:flex; align-items:center; gap:10px}
+.pw-demo{font-size:12px; font-weight:600; color:var(--notinstalled); background:#EEE8F8; padding:2px 8px; border-radius:4px}
+.pw-h1{margin:0; font-family:'Barlow Semi Condensed','Barlow',sans-serif; font-weight:600; font-size:26px; line-height:1.1; letter-spacing:-.005em}
+.pw-big{font-size:56px; font-weight:700; letter-spacing:-.02em; margin-right:6px; vertical-align:-6px}
+.pw-sub{margin:8px 0 0; color:var(--muted)}
+.pw-actions{display:flex; gap:8px}
+.pw-btn{min-height:40px; padding:0 16px; border-radius:6px; border:1px solid var(--line); background:var(--surface); font-weight:600; cursor:pointer}
+.pw-btn:hover{border-color:var(--soft)}
+.pw-root .pw-primary{background:var(--go); border-color:var(--go); color:#FFFFFF}
+.pw-root .pw-primary:hover{background:#26384A; border-color:#26384A}
+.pw-ghost{min-height:34px; padding:0 12px; font-size:13px; background:transparent}
+
+/* Cause strip: the one bold element */
+.pw-strip{background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:16px 18px 12px; margin-bottom:16px}
+.pw-bar{display:flex; gap:3px; height:14px; border-radius:3px; overflow:hidden; margin-bottom:12px}
+.pw-seg{background:var(--c); min-width:6px}
+.pw-legend{display:flex; flex-wrap:wrap; gap:4px 6px}
+.pw-key{text-align:left; display:inline-flex; align-items:baseline; gap:8px; padding:6px 10px 6px 8px; border-radius:6px; border:1px solid transparent; background:transparent; cursor:pointer}
+.pw-key:hover:not(:disabled){background:var(--bg)}
+.pw-key[aria-pressed="true"]{border-color:var(--c); background:color-mix(in srgb,var(--c) 9%,#fff)}
+.pw-key:disabled{cursor:default; opacity:.5}
+.pw-sw{width:10px; height:10px; border-radius:2px; background:var(--c); align-self:center}
+.pw-kn{font-family:'Barlow Semi Condensed','Barlow',sans-serif; font-weight:700; font-size:20px; line-height:1}
+.pw-kl{color:var(--soft); font-weight:500}
+
+/* Toolbar */
+.pw-tools{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px 16px; margin-bottom:10px}
+.pw-search input{width:min(340px,100%); min-height:40px; padding:0 12px; border:1px solid var(--line); border-radius:6px; background:var(--surface)}
+.pw-search input::placeholder{color:var(--muted)}
+.pw-count{margin:0; color:var(--muted); font-size:14px}
+.pw-vh{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+
+/* Device list */
+.pw-cols,.pw-row{display:grid; grid-template-columns:minmax(150px,1.1fr) minmax(130px,1fr) minmax(170px,1.15fr) minmax(220px,2.2fr) 120px; gap:18px; align-items:start}
+.pw-cols{padding:0 18px 6px 22px; font-size:13px; font-weight:600; color:var(--muted)}
+.pw-rows{list-style:none; margin:0; padding:0; background:var(--surface); border:1px solid var(--line); border-radius:8px; overflow:hidden}
+.pw-row{position:relative; padding:14px 18px 14px 22px; border-top:1px solid var(--line2)}
+.pw-row:first-child{border-top:0}
+.pw-row::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--c)}
+.pw-veh strong{display:block; font-weight:600}
+.pw-serial{color:var(--muted); font-size:13px; letter-spacing:.02em}
+.pw-gap-t{display:block; font-family:'Barlow Semi Condensed','Barlow',sans-serif; font-weight:600; font-size:18px; line-height:1.2}
+.pw-track{display:block; height:4px; margin-top:6px; background:var(--line2); border-radius:2px; overflow:hidden}
+.pw-fill{display:block; height:100%; background:var(--c)}
+.pw-why{display:flex; flex-direction:column; align-items:flex-start; gap:4px}
+.pw-tag{font-weight:600; color:var(--c)}
+.pw-c-seasonal .pw-tag,.pw-c-unknown .pw-tag{color:var(--soft)}
+.pw-batch{font-size:12px; font-weight:600; color:#fff; background:var(--unplugged); padding:1px 7px; border-radius:4px}
+.pw-sig{font-size:13px; color:var(--muted)}
+.pw-next{margin:0; color:var(--soft); max-width:60ch}
+.pw-next.pw-same{color:var(--muted); font-size:14px}
+.pw-act{text-align:right}
+
+/* States */
+.pw-status{display:flex; align-items:center; gap:10px; color:var(--muted); margin:24px 0}
+.pw-spin{width:14px; height:14px; border:2px solid var(--line); border-top-color:var(--soft); border-radius:50%; animation:pw-spin .8s linear infinite}
+@keyframes pw-spin{to{transform:rotate(360deg)}}
+.pw-note{background:#FFF6E0; color:#6B4400; padding:10px 14px; border-radius:6px; margin:0 0 16px}
+.pw-empty{display:flex; flex-direction:column; gap:4px; padding:32px 22px; background:var(--surface); border:1px solid var(--line); border-radius:8px; color:var(--muted)}
+.pw-empty strong{color:var(--ink); font-size:16px}
+.pw-foot{font-size:13px; color:var(--muted); margin:16px 0 0; max-width:90ch}
+
+@media (max-width:900px){
+  .pw-root{padding:20px 16px 28px}
+  .pw-cols{display:none}
+  .pw-row{grid-template-columns:1fr auto; gap:8px 14px}
+  .pw-veh{grid-column:1} .pw-gap{grid-column:2; text-align:right; min-width:90px}
+  .pw-why,.pw-next,.pw-act{grid-column:1 / -1}
+  .pw-act{text-align:left}
+  .pw-big{font-size:44px}
+  .pw-legend{flex-direction:column; align-items:flex-start}
+  .pw-actions{width:100%} .pw-actions .pw-btn{flex:1}
+}
+@media (prefers-reduced-motion:reduce){.pw-spin{animation:none}}
