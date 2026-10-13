@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pitwall Live trial sign in</title>
+<link rel="stylesheet" href="pages.css">
+<script src="live-demo-api.js"></script>
+</head>
+<body class="center">
+<main class="card">
+  <div class="brand"><svg width="26" height="26" viewBox="0 0 26 26" fill="none" stroke="#C2410C" stroke-width="2" aria-hidden="true"><path d="M3 9h20M3 17h20M9 3v20M17 3v20"/></svg>Pitwall</div>
+  <h1 id="title">Sign in</h1>
+  <p class="lede" id="lede">Use the username and password you were given. The first time you sign in, you’ll choose your own password.</p>
+
+  <div class="trial" id="trialBox">
+    <strong>Pitwall Live trial</strong>
+    <span>The real, empty Pitwall: no sample companies. Connect your own MyGeotab databases, add staff and fleet-manager logins, and see each person’s view. Everything is saved only in this browser.</span>
+    <a href="guide.html">Read the go-live guide</a>
+  </div>
+  <form id="f" novalidate>
+    <div class="field" id="nameRow" hidden><label for="name">Your name</label><input id="name" autocomplete="name"></div>
+    <div class="field"><label for="username">Username</label><input id="username" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>
+    <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required></div>
+    <p class="err" id="err" role="alert" hidden></p>
+    <button class="btn primary" type="submit" id="go">Sign in</button>
+  </form>
+  <p class="muted" id="help">Forgot your password? An admin can reset it on the Team page, or use Erase everything to start the trial over.</p>
+</main>
+<script>
+(function(){
+  var setup = false, $ = function(id){ return document.getElementById(id); };
+  fetch('/api/state').then(function(r){ return r.json(); }).then(function(s){
+    if (s.user) { location.href = s.user.mustChangePassword ? 'team.html#welcome' : './'; return; }
+    if (s.setupNeeded && !s.setupAllowed) {
+      $('title').textContent = 'Pitwall isn’t set up yet';
+      $('lede').textContent = 'For safety, the first admin account can only be created from the shop network. On a computer at the shop, open http://pitwall.local and set it up there.';
+      $('f').hidden = true; $('help').hidden = true; return;
+    }
+    if (s.setupNeeded) {
+      setup = true;
+      $('title').textContent = 'Set up Pitwall';
+      $('lede').textContent = 'Start by creating your admin account for this trial. You’ll use it to connect MyGeotab databases and to add staff and customers.';
+      $('nameRow').hidden = false; $('help').hidden = true; $('go').textContent = 'Create admin account';
+      $('password').setAttribute('autocomplete', 'new-password');
+    }
+    $(setup ? 'name' : 'username').focus();
+  });
+  $('f').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    var b = { username: $('username').value.trim(), password: $('password').value, name: $('name').value.trim() };
+    if (!b.username || !b.password) return show('Enter a username and password.');
+    if (setup && b.password.length < 8) return show('Use a password of at least 8 characters.');
+    $('go').disabled = true;
+    fetch(setup ? '/api/setup' : '/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(b) })
+      .then(function(r){ return r.json().then(function(j){ if (!r.ok) throw new Error(j.error || 'Sign-in failed.'); location.href = j.mustChangePassword ? 'team.html#welcome' : './'; }); })
+      .catch(function(e){ $('go').disabled = false; show(e.message === 'Failed to fetch' ? 'Something went wrong. Reload the page and try again.' : e.message); });
+  });
+  function show(m){ var e = $('err'); e.textContent = m; e.hidden = false; }
+})();
+</script>
+</body>
+</html>

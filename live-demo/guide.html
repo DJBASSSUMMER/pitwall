@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pitwall Live go-live guide</title>
+<link rel="stylesheet" href="pages.css">
+<style>
+.wide{max-width:820px;gap:22px}
+.wide section{display:flex;flex-direction:column;gap:10px}
+.wide h2{margin:0;font-size:20px}
+.wide p,.wide li{line-height:1.55}
+.wide ol,.wide ul{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px}
+code{font:13px ui-monospace,Menlo,monospace;background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:1px 5px;overflow-wrap:anywhere}
+.callout{background:var(--surface);border:1px solid var(--line);border-left:4px solid #2BB3A3;border-radius:10px;padding:14px 16px}
+.callout.warn{border-left-color:var(--accent)}
+.tbl{overflow-x:auto;border-radius:12px}
+td,th{vertical-align:top}
+.toc{display:flex;flex-wrap:wrap;gap:8px}
+.toc a{border:1px solid var(--line);border-radius:999px;padding:4px 12px;text-decoration:none;background:var(--surface);font-size:14px}
+.cta{display:inline-flex;align-items:center;text-decoration:none}
+</style>
+</head>
+<body>
+<main class="wide">
+  <p><a href="./">← Back to the Pitwall Live trial</a></p>
+  <div>
+    <h1>Pitwall Live: go-live guide</h1>
+    <p class="lede">Pitwall Live runs on your Raspberry Pi with no sample data and goes public at <strong>https://app.stingrayproductions.com</strong> through a Cloudflare Tunnel. Staff and each customer’s fleet manager get their own login from the Team page.</p>
+  </div>
+  <nav class="toc" aria-label="On this page"><a href="#trial">This trial</a><a href="#s1">1. SD card</a><a href="#s2">2. First start</a><a href="#s3">3. Cloudflare</a><a href="#s4">4. Onboarding</a><a href="#roles">Who sees what</a><a href="#check">Checklist</a></nav>
+
+  <section id="trial" class="callout">
+    <h2>This trial vs. your Pi</h2>
+    <p>This site is the same Pitwall Live app, running inside your browser so you can try it today. It starts empty, connects to your real MyGeotab databases, and has every login type and the same company walls.</p>
+    <ul>
+      <li><strong>Saved only in this browser.</strong> Logins you create here work only on this computer: sign out and sign in as them to see their view. On the Pi, everyone signs in from their own phone or computer.</li>
+      <li><strong>Syncs while it’s open.</strong> The trial syncs MyGeotab every 15 minutes while a Pitwall tab is open. The Pi syncs around the clock.</li>
+      <li><strong>MyGeotab passwords aren’t saved.</strong> The trial keeps only MyGeotab’s session key. When it expires, remove the database and add it again.</li>
+      <li><strong>Erase everything</strong> in the top bar wipes all trial data from this browser.</li>
+    </ul>
+    <p><a class="btn primary cta" href="login.html">Open the trial</a></p>
+  </section>
+
+  <section id="s1">
+    <h2>Step 1: Build and flash the SD card</h2>
+    <p>The card is ready once it holds Raspberry Pi OS plus the Pitwall Live kit (<code>pitwall-live-sd-kit.zip</code>).</p>
+    <ol>
+      <li>In your browser, download Raspberry Pi OS Lite (64-bit) from <code>https://downloads.raspberrypi.com/raspios_lite_arm64_latest</code> into Downloads.</li>
+      <li>Save <code>pitwall-live-sd-kit.zip</code> into <code>Downloads/pitwall-build</code>, next to <code>build_image.py</code>.</li>
+      <li>Ask Claude to build the image, or run it yourself in Terminal:<br><code>python3 ~/Downloads/pitwall-build/build_image.py ~/Downloads/&lt;the raspios file&gt;.img.xz ~/Downloads/pitwall-build/pitwall-live-sd-kit.zip ~/Downloads/pitwall-live.img</code></li>
+      <li>Write <code>pitwall-live.img</code> with Raspberry Pi Imager (Choose OS → Use custom). When Imager offers OS customisation, choose <strong>No</strong>: the kit already sets everything.</li>
+      <li>Optional: if you already have your Cloudflare tunnel token (Step 3), save it as <code>cloudflare-token.txt</code> in the <code>pitwall</code> folder on the card’s bootfs drive.</li>
+    </ol>
+  </section>
+
+  <section id="s2">
+    <h2>Step 2: First start and your admin account</h2>
+    <p>The admin account can only be created from the shop network, so nobody on the internet can claim it first.</p>
+    <ol>
+      <li>Plug the Pi into Ethernet and power it on. The first boot installs Pitwall (5–10 minutes).</li>
+      <li>On a computer at the shop, open <code>http://pitwall.local</code> and create your admin account.</li>
+      <li>You land on the <strong>Get ready</strong> checklist, which walks you through Step 4.</li>
+    </ol>
+  </section>
+
+  <section id="s3">
+    <h2>Step 3: Publish at app.stingrayproductions.com</h2>
+    <p>A Cloudflare Tunnel lets customers reach the Pi over https without opening anything on your router. Your domain’s DNS moves from WordPress.com to Cloudflare first; the domain stays registered at WordPress.com.</p>
+    <ol>
+      <li>Create a free Cloudflare account and choose <strong>Add a domain</strong> → stingrayproductions.com → Free plan.</li>
+      <li>Check the DNS records Cloudflare copied in. Keep the ones for your website and email, and make sure <code>addins</code> is a CNAME to <code>djbasssummer.github.io</code> set to <strong>DNS only</strong> (grey cloud), so the add-in and both demos keep working.</li>
+      <li>Switch to the two Cloudflare nameservers at WordPress.com (Domains → stingrayproductions.com → Name servers). Claude can do this through the WordPress.com connection once you confirm. Allow a few hours.</li>
+      <li>In Cloudflare <strong>Zero Trust</strong> → Networks → Tunnels, create a tunnel named <code>pitwall</code> (Cloudflared). Pick Debian and arm64, then copy the token that starts with <code>eyJ</code>.</li>
+      <li>Add a public hostname: subdomain <code>app</code>, domain <code>stingrayproductions.com</code>, service <strong>HTTP</strong>, URL <code>localhost:80</code>.</li>
+      <li>Save the token as <code>cloudflare-token.txt</code> in the card’s <code>pitwall</code> folder and restart the Pi. It installs cloudflared, connects, and deletes the token file.</li>
+      <li>Open <code>https://app.stingrayproductions.com</code> on your phone over cellular to confirm.</li>
+    </ol>
+    <p class="callout warn">The token is a password for your tunnel. Don’t paste it into chats or email. If it leaks, delete the tunnel in Cloudflare and make a new one.</p>
+  </section>
+
+  <section id="s4">
+    <h2>Step 4: Onboard staff and customers</h2>
+    <p>Every login is made by an admin on the Team page, and each comes with a ready-to-send message.</p>
+    <ol>
+      <li><strong>Connect each customer.</strong> Data → Add a MyGeotab database: the database name, the customer’s name, and a MyGeotab user made just for Pitwall (view-only is enough).</li>
+      <li><strong>Add your staff.</strong> Team → Add someone → Staff, Editor or Admin.</li>
+      <li><strong>Add each customer’s fleet manager.</strong> Team → Add someone → Fleet manager, then pick their company.</li>
+      <li><strong>Send the login.</strong> Click <strong>Copy message</strong> and text or email it. Use the <code>https://app.stingrayproductions.com/login</code> link once Step 3 is done.</li>
+      <li><strong>First sign-in.</strong> Each person picks their own password before they see anything else.</li>
+    </ol>
+    <p>Forgot a password? An admin clicks <strong>Reset password</strong>: it signs that person out and makes a temporary password with its own message. Roles change from the Role menu and take effect at the next sign-in.</p>
+  </section>
+
+  <section id="roles">
+    <h2>What each login sees</h2>
+    <p>The server enforces these limits, so a fleet manager can’t reach another company’s data even by tinkering with the page.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Role</th><th>Lands on</th><th>Can</th><th>Can’t</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Admin</strong></td><td>Portfolio</td><td>Everything: customers, MyGeotab databases, tickets, work orders, people</td><td>–</td></tr>
+        <tr><td><strong>Editor</strong></td><td>Device health</td><td>Everything except adding or removing people</td><td>Manage the team</td></tr>
+        <tr><td><strong>Staff</strong></td><td>My work</td><td>Tickets, work orders, device health and customer briefs for all customers</td><td>Connect databases, import data, manage people</td></tr>
+        <tr><td><strong>Fleet manager</strong></td><td>My fleet</td><td>Their own vehicles and what needs attention, help requests, replies on their own tickets</td><td>See other companies, internal notes, work orders, settings or backups</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="check">
+    <h2>Before you invite customers</h2>
+    <ul>
+      <li>Admin account created at <code>http://pitwall.local</code></li>
+      <li>At least one MyGeotab database connected and its devices showing in Device health</li>
+      <li><code>https://app.stingrayproductions.com</code> opens from a phone on cellular</li>
+      <li>A test fleet-manager login for your own database: sign in on your phone, set a password, check you see only that company</li>
+      <li>One staff member signed in and answered a test help request</li>
+      <li>Staff know the reseller demo (<code>/demo</code>) and this trial (<code>/live-demo</code>) are separate from the live site</li>
+      <li>Backups checked: Data → Backups shows today’s copy (the Pi keeps 30 daily and 12 monthly)</li>
+    </ul>
+  </section>
+</main>
+</body>
+</html>
