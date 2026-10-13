@@ -98,7 +98,7 @@ section{display:flex;flex-direction:column;gap:10px}
 
   function showInvite(name, username, password, isReset){
     var text = 'Hi ' + name.split(' ')[0] + ',\n\n' + (isReset ? 'Your Pitwall password was reset.' : 'Here’s your Pitwall login.') + '\n\nSign in: ' + signInUrl() + '\nUsername: ' + username + '\n' + (isReset ? 'Temporary password: ' : 'Starting password: ') + password + '\n\nYou’ll choose your own password the first time you sign in.';
-    text += '\n\n(Trial note for you, not them: this login only works in this browser. Sign out and sign in as ' + name.split(' ')[0] + ' to see their view. On your Pi, send https://app.stingrayproductions.com/login instead.)';
+    text += '\n\n(Trial note for you, not them: this login only works in this browser. Sign out and sign in as ' + name.split(' ')[0] + ' to see their view.)';
     $('inviteTitle').textContent = (isReset ? 'New password for ' : 'Login ready for ') + name;
     $('inviteText').textContent = text; $('inviteBox').hidden = false;
     $('inviteBox').scrollIntoView({behavior:'smooth', block:'center'});

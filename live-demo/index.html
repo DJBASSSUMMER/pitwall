@@ -599,7 +599,7 @@ function geoPanel(){
   var dbs = geoDbs(), busy = dbs.some(function(e){ return e.status; });
   var h = '<section class="panel" aria-labelledby="geoh"><div class="panel-h"><h2 id="geoh">Live from MyGeotab</h2>'
     + (S.canEdit && dbs.length ? '<button type="button" class="btn primary" data-act="geo-sync"' + (busy ? ' disabled' : '') + '>' + (busy ? 'Syncing…' : 'Sync all now') + '</button>' : '') + '</div><div class="panel-b">';
-  h += '<p class="sub" style="margin:0">This browser signs in to each database and syncs every ' + GEO_INFO.syncMinutes + ' minutes while Pitwall is open (the Pi syncs around the clock). It only reads; nothing in MyGeotab changes. Use a MyGeotab user made for Pitwall with view-only access.</p>';
+  h += '<p class="sub" style="margin:0">This browser signs in to each database and syncs every ' + GEO_INFO.syncMinutes + ' minutes while Pitwall is open. It only reads; nothing in MyGeotab changes. Use a MyGeotab user made for Pitwall with view-only access.</p>';
   if (dbs.length) h += '<div class="tbl-wrap"><table><thead><tr><th>Database</th><th>Customer</th><th class="num">Devices</th><th class="num">Silent</th><th>Last sync</th><th></th></tr></thead><tbody>'
     + dbs.map(function(e){
       var l = e.last || {};
@@ -625,7 +625,7 @@ function backupPanel(){
   var h = '<section class="panel" aria-labelledby="bkh"><div class="panel-h"><h2 id="bkh">Backups</h2>' + (S.canEdit ? '<button type="button" class="btn" data-act="bk-run">Back up now</button>' : '') + '</div><div class="panel-b">';
   if (!BK) return h + '<p class="sub" style="margin:0">Checking backups…</p></div></section>';
   h += '<div class="tbl-wrap"><table><thead><tr><th>Where</th><th>Status</th><th>Keeps</th><th class="num">Free space</th></tr></thead><tbody>'
-    + '<tr><td><strong>This browser (trial)</strong></td><td>' + (BK.local.latest ? 'Latest copy ' + esc(BK.local.latest) : '<span class="sub">No backups in the trial. The Pi keeps them on its SD card.</span>') + '</td><td>30 daily + 12 monthly</td><td class="num">–</td></tr>'
+    + '<tr><td><strong>This browser (trial)</strong></td><td>' + (BK.local.latest ? 'Latest copy ' + esc(BK.local.latest) : '<span class="sub">No backups in the trial.</span>') + '</td><td>30 daily + 12 monthly</td><td class="num">–</td></tr>'
     + (BK.drives || []).map(function(d){
       var name = d.label === 'pitwalla' ? 'Backup drive (PITWALL-A)' : d.label === 'pitwallb' ? 'Drive B (PITWALL-B)' : d.label;
       return '<tr><td><strong>' + esc(name) + '</strong></td><td>' + (d.error ? '<span class="bad">' + esc(d.error) + '</span>' : d.connected ? '<span class="chip t-ok">Connected</span> ' + (d.lastCopy ? 'copied ' + esc(ago(E.time(d.lastCopy))) : '') : '<span class="chip t-muted">Not plugged in</span>') + '</td><td>365 daily + every month</td><td class="num">' + (d.freeGB != null ? d.freeGB.toLocaleString('en-US') + ' GB' : '–') + '</td></tr>';
@@ -779,7 +779,7 @@ function onboardingSteps(){
     {done: dbs.length > 0, title: 'Connect a customer’s MyGeotab database', text: dbs.length ? dbs.length + ' connected. Add one for each customer you support.' : 'Each database becomes a customer in Pitwall and syncs every few minutes. Use a read-only MyGeotab user made just for Pitwall.', href: '#data', cta: 'Open Data'},
     {done: staff > 0, title: 'Add your staff', text: staff ? staff + ' teammate' + (staff === 1 ? '' : 's') + ' added.' : 'Each person gets their own login. Staff work tickets and work orders; editors can also sync MyGeotab; admins manage people.', href: 'team.html', cta: 'Open Team'},
     {done: nc > 0 && withLogin === nc, title: 'Give each customer a fleet-manager login', text: nc ? withLogin + ' of ' + nc + ' customer' + (nc === 1 ? ' has' : 's have') + ' a login. A fleet manager only ever sees their own company.' : 'Do this after connecting their database.', href: 'team.html#add', cta: 'Add a fleet manager'},
-    {info: true, title: 'Send people the sign-in link', text: link + (local ? '. In this trial, logins live only in this browser: sign out and sign in as someone to see their view. On your Pi, send https://app.stingrayproductions.com/login.' : ''), copy: true}
+    {info: true, title: 'Send people the sign-in link', text: link + (local ? '. In this trial, logins live only in this browser: sign out and sign in as someone to see their view.' : ''), copy: true}
   ];
 }
 function showOnboarding(){ return ROLE === 'admin' && !(S.onb && S.onb.hidden) && onboardingSteps().some(function(s){ return !s.done && !s.info; }); }

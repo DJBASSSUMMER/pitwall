@@ -8,8 +8,8 @@
     + '@media (max-width:760px){.pwtrial{padding:6px 12px}.pwtrial .long,#pwtrialWho{display:none}}';
   var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   var bar = document.createElement('div'); bar.className = 'pwtrial'; bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', 'Trial');
-  bar.innerHTML = '<span><b>Pitwall Live trial</b><span class="long"> · Starts empty and reads your real MyGeotab data. Everything is saved only in this browser; on your Pi it’s shared with your team.</span></span>'
-    + '<span class="r"><span id="pwtrialWho"></span><a href="guide.html">Go-live guide</a><button type="button" id="pwtrialErase">Erase everything</button><button type="button" id="pwtrialOut">Sign out</button></span>';
+  bar.innerHTML = '<span><b>Pitwall Live trial</b><span class="long"> · Starts empty and reads your real MyGeotab data. Everything you do here is saved only in this browser.</span></span>'
+    + '<span class="r"><span id="pwtrialWho"></span><button type="button" id="pwtrialErase">Erase everything</button><button type="button" id="pwtrialOut">Sign out</button></span>';
   document.body.insertBefore(bar, document.body.firstChild);
   var ROLE = { admin: 'Admin', editor: 'Editor', staff: 'Staff', customer: 'Fleet manager' };
   fetch('api/state').then(function (r) { return r.json(); }).then(function (s) {

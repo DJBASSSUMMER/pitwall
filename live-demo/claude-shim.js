@@ -80,7 +80,7 @@
     }
   };
   /* The Pi syncs MyGeotab itself; the page only asks it to. */
-  var mcp = { selfHosted: true, callTool: function () { return Promise.reject({ code: 'capability_disabled', message: 'Sync runs on the Pi.' }); } };
+  var mcp = { selfHosted: true, callTool: function () { return Promise.reject({ code: 'capability_disabled', message: 'Sync runs from the Data page.' }); } };
   var caps = { db: db, user: user, downloads: downloads, mcp: mcp };
   window.claude = { use: function (name) { return Promise.resolve(caps[name] || null); } };
   window.pitwallApi = api;
