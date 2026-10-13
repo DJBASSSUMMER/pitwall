@@ -1,4 +1,4 @@
-/* Trial banner: who you're signed in as, the go-live guide, erase, sign out. */
+/* Trial banner: who you're signed in as, erase, sign out. */
 (function () {
   'use strict';
   var css = '.pwtrial{position:sticky;top:0;z-index:50;display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;justify-content:space-between;padding:8px 16px;background:#0E3B36;color:#F3F4F1;font:13px/1.4 "IBM Plex Sans","Segoe UI",system-ui,sans-serif;border-bottom:2px solid #2BB3A3}'
