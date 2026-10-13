@@ -12,7 +12,7 @@
   --line:#DDE0DA; --line-2:#EEF0EB; --accent:#C2410C; --accent-ink:#FFFFFF; --focus:#1F4E8C;
   --nav:#16191D; --nav-ink:#E9EBE6; --nav-muted:#9AA1A9; --nav-active:#2A2F35; --nav-badge:#FDBA74;
   --crit-bg:#FDE7DC; --crit:#9A3412; --warn-bg:#FEF3C7; --warn:#854D0E; --info-bg:#E0EAF7; --info:#1F4E8C;
-  --purple-bg:#EDE4F7; --purple:#5B2F8C; --muted-bg:#E7E9E4; --muted-fg:#3F454C; --ok-bg:#E3EFE6; --ok:#2F5E3A;
+  --purple-bg:#EDE4F7; --purple:#5B2F8C; --muted-bg:#E7E9E4; --muted-fg:#3F454C; --ok-bg:#E3EFE6; --ok:#2F5E3A; --cng-bg:#D7F0EC; --cng:#0E5A52;
   --sans:'IBM Plex Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
   --mono:'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 }
@@ -21,14 +21,14 @@
   --line:#2C3136; --line-2:#23272B; --accent:#F97316; --accent-ink:#16191D; --focus:#9CC3F5;
   --nav:#0A0B0D; --nav-ink:#E9EBE6; --nav-muted:#9AA1A9; --nav-active:#22262B; --nav-badge:#FDBA74;
   --crit-bg:#3A1E12; --crit:#FDBA8C; --warn-bg:#3A2E0E; --warn:#FCD34D; --info-bg:#142338; --info:#9CC3F5;
-  --purple-bg:#2A1D3A; --purple:#D3B8F5; --muted-bg:#262A2F; --muted-fg:#C3C8CE; --ok-bg:#16301E; --ok:#9AD7A8;
+  --purple-bg:#2A1D3A; --purple:#D3B8F5; --muted-bg:#262A2F; --muted-fg:#C3C8CE; --ok-bg:#16301E; --ok:#9AD7A8; --cng-bg:#0F2D2A; --cng:#8ED8CC;
   color-scheme:dark; } }
 :root[data-theme="dark"]{
   --bg:#0F1113; --surface:#171A1D; --surface-2:#1D2125; --ink:#ECEEEA; --ink-2:#CDD1D6; --muted:#A3AAB2;
   --line:#2C3136; --line-2:#23272B; --accent:#F97316; --accent-ink:#16191D; --focus:#9CC3F5;
   --nav:#0A0B0D; --nav-ink:#E9EBE6; --nav-muted:#9AA1A9; --nav-active:#22262B; --nav-badge:#FDBA74;
   --crit-bg:#3A1E12; --crit:#FDBA8C; --warn-bg:#3A2E0E; --warn:#FCD34D; --info-bg:#142338; --info:#9CC3F5;
-  --purple-bg:#2A1D3A; --purple:#D3B8F5; --muted-bg:#262A2F; --muted-fg:#C3C8CE; --ok-bg:#16301E; --ok:#9AD7A8;
+  --purple-bg:#2A1D3A; --purple:#D3B8F5; --muted-bg:#262A2F; --muted-fg:#C3C8CE; --ok-bg:#16301E; --ok:#9AD7A8; --cng-bg:#0F2D2A; --cng:#8ED8CC;
   color-scheme:dark; }
 *{box-sizing:border-box}
 html,body{min-height:100%}
@@ -85,6 +85,8 @@ h3{margin:0; font-size:15px; font-weight:600}
 .t-crit{background:var(--crit-bg); color:var(--crit)} .t-warn{background:var(--warn-bg); color:var(--warn)}
 .t-info{background:var(--info-bg); color:var(--info)} .t-purple{background:var(--purple-bg); color:var(--purple)}
 .t-muted{background:var(--muted-bg); color:var(--muted-fg)} .t-ok{background:var(--ok-bg); color:var(--ok)}
+.t-cng{background:var(--cng-bg); color:var(--cng)} .cng-tag{margin-left:6px; padding:1px 7px; font-size:11px; vertical-align:2px}
+.note.cng-note{background:var(--cng-bg); color:var(--ink-2); border-left:4px solid var(--cng)} .note.cng-note strong{color:var(--cng)}
 .seg{display:flex; flex-wrap:wrap; gap:6px}
 .seg button{min-height:40px; padding:0 14px; border-radius:999px; border:1px solid var(--line); background:var(--surface); font-size:13px; font-weight:600; cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:var(--bg)}
@@ -179,15 +181,16 @@ details summary{cursor:pointer; font-weight:600; font-size:14px}
 
   var CAUSES = {
     unplugged:    { label: 'Likely unplugged',  hint: 'Power removed with ignition off', tone: 'crit' },
+    disconnect:   { label: 'Battery disconnect (CNG)', hint: 'CNG master switch likely turned off', tone: 'cng' },
     voltage:      { label: 'Wiring / voltage',  hint: 'Low or unstable supply',          tone: 'warn' },
     gps:          { label: 'No GPS fix',        hint: 'Ignition seen, no location',      tone: 'info' },
     seasonal:     { label: 'Parked / seasonal', hint: 'Normal shutdown, idle 14+ days',  tone: 'muted' },
     notinstalled: { label: 'Never installed',   hint: 'Activated, no trips ever',        tone: 'purple' },
     unknown:      { label: 'Needs a look',      hint: 'No clear signal before silence',  tone: 'muted' }
   };
-  var CAUSE_ORDER = ['unplugged', 'voltage', 'gps', 'notinstalled', 'seasonal', 'unknown'];
+  var CAUSE_ORDER = ['unplugged', 'disconnect', 'voltage', 'gps', 'notinstalled', 'seasonal', 'unknown'];
 
-  var SIGNALS = ['power_removed', 'low_voltage', 'reboot_loop', 'ignition_no_gps', 'normal_shutdown', 'normal', ''];
+  var SIGNALS = ['power_removed', 'battery_disconnect', 'low_voltage', 'reboot_loop', 'ignition_no_gps', 'normal_shutdown', 'normal', ''];
 
   function t(x) { if (x == null || x === '') return null; var v = typeof x === 'number' ? x : Date.parse(x); return isNaN(v) ? null : v; }
 
@@ -204,7 +207,7 @@ details summary{cursor:pointer; font-weight:600; font-size:14px}
     flags = flags || {};
     var last = t(d.lastCommAt), act = t(d.activatedAt), trip = t(d.lastTripAt);
     var silentMs = last == null ? Infinity : Math.max(0, asOf - last);
-    var r = { serial: d.serial, silent: false, silentMs: silentMs, cause: null, archived: !!d.archived };
+    var r = { serial: d.serial, silent: false, silentMs: silentMs, cause: null, archived: !!d.archived, cng: !!d.isCng };
     if (d.archived) return r;
     if (!trip && act != null && asOf - act > 7 * D) {
       r.silent = true; r.cause = 'notinstalled'; r.silentMs = asOf - act; return r;
@@ -214,6 +217,9 @@ details summary{cursor:pointer; font-weight:600; font-size:14px}
     if (flags.seasonal) { r.cause = 'seasonal'; r.flagged = true; return r; }
     switch (d.lastSignal) {
       case 'power_removed': r.cause = 'unplugged'; break;
+      /* CNG only: shutdown, then power cut within minutes, healthy battery.
+         "routine" = the switch is turned off most nights, so a short silence is expected. */
+      case 'battery_disconnect': r.cause = 'disconnect'; r.routine = !!d.routine; r.expected = r.routine && silentMs < 3 * D; break;
       case 'low_voltage': case 'reboot_loop': r.cause = 'voltage'; break;
       case 'ignition_no_gps': r.cause = 'gps'; break;
       case 'normal_shutdown': r.cause = silentMs > 14 * D ? 'seasonal' : 'unknown'; break;
@@ -251,6 +257,10 @@ details summary{cursor:pointer; font-weight:600; font-size:14px}
       case 'unplugged': return c.batch
         ? c.batchSize + ' units at this customer lost power within hours of each other. That points to shop work, not drivers. Ask the fleet manager before sending an installer. Stored records upload once the units are plugged back in.'
         : 'Power was removed with the ignition off. Check with the driver or fleet manager; if the device was pulled on purpose, consider a harness install in a less accessible spot.';
+      case 'disconnect': return c.expected
+        ? 'This CNG vehicle’s battery disconnect is switched off most nights, and it has been off less than three days (a weekend, say). The tracker reconnects when the switch goes back on. Nothing to do yet.'
+        : (c.routine ? 'This CNG vehicle’s battery disconnect is normally switched off overnight, but it has been off much longer than usual. ' : 'The tracker lost power minutes after a normal shutdown with a healthy battery, which matches a CNG battery disconnect being switched off. ')
+          + 'Ask the fleet manager whether the vehicle is parked with the switch off. Stored data uploads once it is back on. The switch is a safety device on CNG vehicles, so don’t ask drivers to leave it on, and don’t rewire the tracker around it without the fleet’s sign-off.';
       case 'voltage': return 'Supply voltage was low or unstable before it went quiet. Book an installer to check the harness and connection.';
       case 'gps': return 'The vehicle is running but not getting a location fix. Usually antenna placement or obstruction: inspect where the device is mounted.';
       case 'seasonal': return 'Normal shutdown and parked for weeks. Confirm with the customer that the vehicle is out of service for the season.';
@@ -296,17 +306,19 @@ details summary{cursor:pointer; font-weight:600; font-size:14px}
     var items = [], groups = {};
     (data.devices || []).forEach(function (d) {
       var c = A.cls[d.serial];
-      if (!c || !c.silent || c.cause === 'seasonal' || c.cause === 'notinstalled') return;
+      if (!c || !c.silent || c.expected || c.cause === 'seasonal' || c.cause === 'notinstalled') return;
       var key = d.customerId + '~' + c.cause + (c.batch ? '~batch' : '');
       var g = groups[key] || (groups[key] = { customerId: d.customerId, cause: c.cause, batch: !!c.batch, serials: [], maxSilent: 0 });
       g.serials.push(d.serial); g.maxSilent = Math.max(g.maxSilent, c.silentMs);
     });
     Object.keys(groups).forEach(function (k) {
       var g = groups[k], n = g.serials.length, cz = CAUSES[g.cause];
-      var text = g.batch
+      var text = g.cause === 'disconnect'
+        ? n + (n === 1 ? ' CNG vehicle' : ' CNG vehicles') + ' silent, battery disconnect likely left off. Longest: ' + fmtAgo(g.maxSilent) + '.'
+        : g.batch
         ? n + ' vehicles lost power within hours of each other, likely during shop work.'
-        : n + (n === 1 ? ' vehicle' : ' vehicles') + ' silent, ' + cz.label.toLowerCase() + '. Longest: ' + fmtAgo(g.maxSilent) + '.';
-      items.push({ id: 'dev~' + k, cat: 'devices', sev: g.cause === 'unknown' ? 'Risk' : 'Critical', customerId: g.customerId, kind: cz.label, text: text, impactLabel: n + (n === 1 ? ' vehicle' : ' vehicles'), score: n * 40 + (g.batch ? 200 : 0), route: 'devices', filter: { customerId: g.customerId, cause: g.cause } });
+        : n + (n === 1 ? ' vehicle' : ' vehicles') + ' silent, ' + cz.label.toLowerCase().replace('cng', 'CNG') + '. Longest: ' + fmtAgo(g.maxSilent) + '.';
+      items.push({ id: 'dev~' + k, cat: 'devices', sev: g.cause === 'unknown' || g.cause === 'disconnect' ? 'Risk' : 'Critical', customerId: g.customerId, kind: cz.label, text: text, impactLabel: n + (n === 1 ? ' vehicle' : ' vehicles'), score: n * 40 + (g.batch ? 200 : 0), route: 'devices', filter: { customerId: g.customerId, cause: g.cause } });
     });
     Object.keys(A.health).forEach(function (cid) {
       var h = A.health[cid];
@@ -348,11 +360,12 @@ details summary{cursor:pointer; font-weight:600; font-size:14px}
     return [cols.join(',')].concat(rows.map(function (r) { return cols.map(function (c) { return csvCell(r[c]); }).join(','); })).join('\r\n');
   }
 
-  var DEVICE_COLS = ['serial', 'customerId', 'vehicle', 'lastCommAt', 'lastSignal', 'activatedAt', 'lastTripAt', 'archived', 'milesToService'];
+  var DEVICE_COLS = ['serial', 'customerId', 'vehicle', 'lastCommAt', 'lastSignal', 'activatedAt', 'lastTripAt', 'archived', 'milesToService', 'isCng'];
   var CUSTOMER_COLS = ['id', 'name', 'database', 'lastAdminLoginAt', 'renewalAt'];
 
   function pick(o, names) { for (var i = 0; i < names.length; i++) { var v = o[names[i]]; if (v != null && v !== '') return v; } return ''; }
   function bool(v) { return /^(1|true|yes|y|archived)$/i.test(String(v || '').trim()); }
+  function cngVal(v) { v = String(v || '').trim(); return /^(1|true|yes|y)$/i.test(v) || /\bcng\b|compressed natural gas/i.test(v); }
   function iso(v) { var x = t(v); return x == null ? null : new Date(x).toISOString(); }
   function slug(v) { return String(v || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60); }
 
@@ -379,7 +392,8 @@ details summary{cursor:pointer; font-weight:600; font-size:14px}
         activatedAt: iso(pick(r, ['activatedat', 'billingstartdate', 'activationdate'])),
         lastTripAt: iso(pick(r, ['lasttripat', 'lasttrip'])),
         archived: bool(pick(r, ['archived', 'inactive'])),
-        milesToService: mts === '' || !isFinite(+mts) ? null : +mts
+        milesToService: mts === '' || !isFinite(+mts) ? null : +mts,
+        isCng: cngVal(pick(r, ['iscng', 'cng', 'fueltype', 'fuel']))
       });
     });
     return { devices: out, errors: errors };
@@ -443,7 +457,8 @@ function dateLabel(ms){ if (ms == null) return '–'; return new Date(ms).toLoca
 function dateTimeLabel(ms){ if (ms == null) return '–'; return new Date(ms).toLocaleString('en-US', {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'}); }
 function ago(ms){ return ms == null ? '–' : E.fmtAgo(Date.now() - ms) + ' ago'; }
 function toneOf(cause){ return 't-' + (E.CAUSES[cause] ? E.CAUSES[cause].tone : 'muted'); }
-var SIGNAL_LABEL = { power_removed:'Power removed, ignition off', low_voltage:'Low supply voltage', reboot_loop:'Repeated reboots', ignition_no_gps:'Ignition on, no GPS fix', normal_shutdown:'Normal shutdown', normal:'Normal trip end', '':'No events recorded' };
+var SIGNAL_LABEL = { power_removed:'Power removed, ignition off', battery_disconnect:'Shutdown, then power cut (CNG switch)', low_voltage:'Low supply voltage', reboot_loop:'Repeated reboots', ignition_no_gps:'Ignition on, no GPS fix', normal_shutdown:'Normal shutdown', normal:'Normal trip end', '':'No events recorded' };
+function cngTag(d){ return d && d.isCng ? '<span class="chip t-cng cng-tag" title="CNG vehicle: may have a battery disconnect switch">CNG</span>' : ''; }
 function period(){ return new Date(A.asOf).toISOString().slice(0,7); }
 function deviceBySerial(serial){ for (var i = 0; i < S.devices.length; i++) if (S.devices[i].serial === serial) return S.devices[i]; return null; }
 function who(uid){ return uid ? '<span data-uid="' + esc(uid) + '">' + (uid === S.uid ? 'You' : 'Someone') + '</span>' : 'Pitwall'; }
@@ -854,7 +869,7 @@ function devTable(){
     + shown.map(function(d){
       var c = A.cls[d.serial], tk = openTicketsForSerial(d.serial).filter(isOpen);
       return '<tr class="click' + (S.dev.open === d.serial ? ' sel' : '') + '" data-act="open-dev" data-id="' + esc(d.serial) + '"><td><input type="checkbox" data-sel="' + esc(d.serial) + '" aria-label="Select ' + esc(d.vehicle) + '"' + (S.dev.sel[d.serial] ? ' checked' : '') + '></td>'
-        + '<td><strong>' + esc(d.vehicle) + '</strong><div class="sub mono">' + esc(d.serial) + '</div></td><td>' + esc(custName(d.customerId)) + '</td><td class="num">' + esc(E.fmtAgo(c.silentMs)) + '</td>'
+        + '<td><strong>' + esc(d.vehicle) + '</strong>' + cngTag(d) + '<div class="sub mono">' + esc(d.serial) + '</div></td><td>' + esc(custName(d.customerId)) + '</td><td class="num">' + esc(E.fmtAgo(c.silentMs)) + '</td>'
         + '<td>' + esc(SIGNAL_LABEL[d.lastSignal || ''] || d.lastSignal) + '</td><td><span class="chip ' + toneOf(c.cause) + '">' + esc(E.CAUSES[c.cause].label) + (c.batch ? ' · batch' : '') + '</span></td><td class="sub mono">' + (tk.length ? tk.map(function(t){ return '#' + t.number; }).join(' ') : '') + '</td></tr>';
     }).join('') + '</tbody></table></div>' + (list.length > 300 ? '<p class="sub" style="padding:0 20px 14px">Showing the 300 longest-silent of ' + list.length + '. Narrow by customer or cause to see the rest.</p>' : '');
 }
@@ -864,10 +879,13 @@ function devDetail(){
   var c = A.cls[d.serial], flag = S.flags[d.serial];
   var acts = S.actions.filter(function(a){ return (a.serials || []).indexOf(d.serial) >= 0; });
   var tks = openTicketsForSerial(d.serial);
-  var h = '<div class="panel-b"><div><span class="eyebrow">' + esc(custName(d.customerId)) + ' · ' + esc(d.serial) + '</span><h2 style="font-size:20px">' + esc(d.vehicle) + '</h2></div>'
+  var h = '<div class="panel-b"><div><span class="eyebrow">' + esc(custName(d.customerId)) + ' · ' + esc(d.serial) + '</span><h2 style="font-size:20px">' + esc(d.vehicle) + cngTag(d) + '</h2></div>'
     + '<div class="row"><span class="chip ' + toneOf(c.cause) + '">' + esc(c.cause ? E.CAUSES[c.cause].label : 'Reporting') + '</span>' + (c.batch ? '<span class="chip t-crit">' + c.batchSize + ' units together</span>' : '') + (flag && flag.seasonal ? '<span class="chip t-muted">Marked parked</span>' : '') + '</div>'
     + '<dl class="facts"><dt>Last heard</dt><dd>' + esc(dateTimeLabel(E.time(d.lastCommAt))) + (c.silent ? ' (' + esc(E.fmtAgo(c.silentMs)) + ' ago)' : '') + '</dd><dt>Last signal</dt><dd>' + esc(SIGNAL_LABEL[d.lastSignal || ''] || d.lastSignal) + '</dd>'
-    + '<dt>Last trip</dt><dd>' + esc(d.lastTripAt ? dateTimeLabel(E.time(d.lastTripAt)) : 'Never') + '</dd><dt>Activated</dt><dd>' + esc(dateLabel(E.time(d.activatedAt))) + '</dd></dl>'
+    + '<dt>Last trip</dt><dd>' + esc(d.lastTripAt ? dateTimeLabel(E.time(d.lastTripAt)) : 'Never') + '</dd><dt>Activated</dt><dd>' + esc(dateLabel(E.time(d.activatedAt))) + '</dd>'
+    + (d.isCng ? '<dt>Fuel</dt><dd>CNG (compressed natural gas)</dd>' : '')
+    + (d.isCng && d.disconnects14 != null ? '<dt>Battery disconnects</dt><dd>' + d.disconnects14 + ' in the last 14 days' + (d.routine ? ' (switched off most nights)' : '') + '</dd>' : '') + '</dl>'
+    + (d.isCng ? '<div class="note cng-note"><strong>CNG vehicle: may have a battery disconnect</strong><span>CNG vehicles often have a master battery switch. When a driver turns it off, the tracker loses power and goes silent until the switch is back on, so silence while parked can be normal.</span></div>' : '')
     + '<div class="note"><strong>Suggested next step</strong><span>' + esc(E.nextStep(c)) + '</span></div>';
   if (S.dev.form && S.dev.form.serials.indexOf(d.serial) >= 0) h += woForm();
   else h += '<div class="row"><button type="button" class="btn primary" data-act="ticket-dev">Open ticket</button><button type="button" class="btn" data-act="wo-one">Create work order</button><button type="button" class="btn" data-act="toggle-seasonal">' + (flag && flag.seasonal ? 'Unmark parked' : 'Mark parked') + '</button></div>';
@@ -1055,10 +1073,10 @@ function vFleet(){
   h += '<section class="kpis">' + kpi('Trackers reporting', pct(hl.reportingPct), (hl.active || 0) + ' vehicles', hl.reportingPct != null && hl.reportingPct < 95) + kpi('Maintenance on schedule', pct(hl.pmPct), overdue.length + ' overdue', overdue.length > 0) + '</section>';
   Object.keys(groups).forEach(function(k){
     var g = groups[k], n = g.list.length, cz = E.CAUSES[g.cause];
-    var title = g.batch ? n + ' trackers went dark at the same time' : n + (n === 1 ? ' tracker' : ' trackers') + ': ' + cz.label.toLowerCase();
+    var title = g.batch ? n + ' trackers went dark at the same time' : n + (n === 1 ? ' tracker' : ' trackers') + ': ' + cz.label.toLowerCase().replace('cng', 'CNG');
     var tk = S.tickets.filter(function(t){ return t.briefKey === cid + '~' + k && t.briefPeriod === period(); })[0];
     h += '<section class="panel"><div class="panel-b"><span class="chip ' + toneOf(g.cause) + '" style="align-self:flex-start">' + esc(cz.label) + '</span><h2>' + esc(title) + '</h2><p class="lede" style="margin:0">' + esc(fleetCopy(g)) + '</p>'
-      + '<p class="sub" style="margin:0">' + esc(g.list.slice(0, 6).map(function(d){ return d.vehicle; }).join(', ')) + (n > 6 ? ' and ' + (n - 6) + ' more' : '') + '</p>'
+      + '<p class="sub" style="margin:0">' + esc(g.list.slice(0, 6).map(function(d){ return d.vehicle + (d.isCng ? ' (CNG)' : ''); }).join(', ')) + (n > 6 ? ' and ' + (n - 6) + ' more' : '') + '</p>'
       + (tk ? '<div class="row"><span class="chip t-ok">Sent to your reseller</span><button type="button" class="btn sm ghost" data-act="open-ticket" data-id="' + esc(tk._id) + '">Ticket #' + tk.number + '</button></div>' : '<div class="row">' + replyButtons(g, k, cid) + '</div>') + '</div></section>';
   });
   if (!silent.length) h += '<section class="panel"><div class="panel-b"><h2>All trackers reporting</h2><p class="lede" style="margin:0">Nothing needs your attention.</p></div></section>';
@@ -1071,6 +1089,7 @@ function vFleet(){
 function fleetCopy(g){
   switch (g.cause) {
     case 'unplugged': return g.batch ? 'They lost power within hours of each other, which usually means shop work. Let your reseller know so they can guide the re-plug.' : 'Power to these trackers was removed while the vehicle was off. If someone unplugged them, plug them back in; stored trips will upload.';
+    case 'disconnect': return 'These are CNG vehicles and may have a battery disconnect switch. Their trackers went quiet right after a normal shutdown, which usually means the switch was turned off. Nothing is broken: once the switch is back on, the tracker reconnects and uploads what it stored. Tell your reseller if any of them should be running.';
     case 'voltage': return 'These trackers had an unstable power supply. Your reseller can send an installer to check the wiring.';
     case 'gps': return 'These vehicles are running but not reporting location. Usually the tracker’s mounting spot is blocking the signal.';
     case 'seasonal': return 'Parked for weeks with a normal shutdown. Tell your reseller if they’re out for the season.';
@@ -1079,7 +1098,7 @@ function fleetCopy(g){
   }
 }
 function replyButtons(g, k, cid){
-  var opts = g.cause === 'unplugged' ? ['Yes, shop work', 'Not sure, please help'] : g.cause === 'seasonal' ? ['Parked for the season', 'Should be running'] : g.cause === 'notinstalled' ? ['Please schedule the install', 'Already installed'] : ['Please send someone', 'We’ll check'];
+  var opts = g.cause === 'unplugged' ? ['Yes, shop work', 'Not sure, please help'] : g.cause === 'disconnect' ? ['Parked, switch is off', 'Should be running'] : g.cause === 'seasonal' ? ['Parked for the season', 'Should be running'] : g.cause === 'notinstalled' ? ['Please schedule the install', 'Already installed'] : ['Please send someone', 'We’ll check'];
   return opts.map(function(o, i){ return '<button type="button" class="btn' + (i === 0 ? ' primary' : '') + '" data-act="reply" data-k="' + esc(k) + '" data-cid="' + esc(cid) + '" data-v="' + esc(o) + '">' + esc(o) + '</button>'; }).join('');
 }
 
@@ -1134,7 +1153,7 @@ function setSeasonal(serials, on){
 }
 function devicePrefill(serials){
   var d0 = deviceBySerial(serials[0]), c = A.cls[serials[0]];
-  var cause = c && c.cause ? E.CAUSES[c.cause].label.toLowerCase() : 'not reporting';
+  var cause = c && c.cause ? E.CAUSES[c.cause].label.toLowerCase().replace('cng', 'CNG') : 'not reporting';
   return { customerId: d0 ? d0.customerId : '', serials: serials, category:'Device issue', source:'device',
     priority: c && c.batch ? 'High' : 'Normal',
     subject: serials.length === 1 ? (d0 ? d0.vehicle : serials[0]) + ': ' + cause : serials.length + ' vehicles: ' + cause,
@@ -1240,7 +1259,7 @@ document.addEventListener('click', function(ev){
       var serials = S.devices.filter(function(d){ var c = A.cls[d.serial]; return d.customerId === cid && c.silent && (c.cause + (c.batch ? '~b' : '')) === k; }).map(function(d){ return d.serial; });
       var cz = E.CAUSES[k.split('~')[0]];
       el.disabled = true;
-      write(createTicket({subject: serials.length + (serials.length === 1 ? ' tracker' : ' trackers') + ': ' + cz.label.toLowerCase(), customerId:cid, category:'Device issue', priority: /~b$/.test(k) || /help|send|schedule/i.test(v) ? 'High' : 'Normal', contact:custName(cid) + ' fleet manager', serials:serials, source:'brief', briefKey:cid + '~' + k},
+      write(createTicket({subject: serials.length + (serials.length === 1 ? ' tracker' : ' trackers') + ': ' + cz.label.toLowerCase().replace('cng', 'CNG'), customerId:cid, category:'Device issue', priority: /~b$/.test(k) || /help|send|schedule/i.test(v) ? 'High' : 'Normal', contact:custName(cid) + ' fleet manager', serials:serials, source:'brief', briefKey:cid + '~' + k},
         {kind:'request', from:custName(cid) + ' fleet manager', body:'Answered from the customer brief: “' + v + '”'}), 'Sent. Ticket opened in Support.');
       break;
     case 'tpl-dev': saveFile('pitwall-devices-template.csv', E.toCSV([

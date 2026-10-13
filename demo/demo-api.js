@@ -4,7 +4,7 @@
    Nothing is sent anywhere. */
 (function () {
   'use strict';
-  var KEY = 'pitwall-demo-v2', H = 3600e3, D = 24 * H;
+  var KEY = 'pitwall-demo-v3', H = 3600e3, D = 24 * H;
   var realFetch = window.fetch.bind(window);
   var bc = 'BroadcastChannel' in window ? new BroadcastChannel('pitwall-demo') : null;
   var state = null, streams = [];
@@ -13,7 +13,7 @@
   function iso(ms) { return new Date(ms).toISOString(); }
   function load() {
     try { state = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { state = null; }
-    if (!state || !state.docs || state.v !== 2) { state = seed(); save(); }
+    if (!state || !state.docs || state.v !== 3) { state = seed(); save(); }
     rebase();
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* storage full or blocked: keep working in memory */ } }
@@ -73,8 +73,16 @@
         for (var b = 0; b < 5; b++) set(3 + b * 4, { lastCommAt: iso(t - 61 * H - b * 25 * 60e3), lastSignal: 'power_removed' });
         set(30, { lastCommAt: iso(t - 4 * D), lastSignal: 'low_voltage' });
         set(12, { milesToService: -420 });
+        /* two CNG service trucks: one went quiet after its battery switch was turned off */
+        set(26, { isCng: true, lastCommAt: iso(t - 30 * H), lastTripAt: iso(t - 30 * H - 6 * 60e3), lastSignal: 'battery_disconnect', disconnects14: 1, routine: false });
+        set(34, { isCng: true, disconnects14: 0, routine: false });
       }
       if (c.id === 'valley-transit') {
+        /* the whole bus fleet runs on CNG; most drivers turn the battery switch off at the depot each night */
+        list.forEach(function (d, k) { d.isCng = true; d.disconnects14 = 8 + (k * 7) % 5; d.routine = true; });
+        set(6, { lastCommAt: iso(t - 5 * D), lastTripAt: iso(t - 5 * D - 4 * 60e3), lastSignal: 'battery_disconnect', disconnects14: 9 });
+        set(14, { lastCommAt: iso(t - 38 * H), lastTripAt: iso(t - 38 * H - 5 * 60e3), lastSignal: 'battery_disconnect', disconnects14: 11 });
+        set(27, { lastCommAt: iso(t - 54 * H), lastTripAt: iso(t - 54 * H - 3 * 60e3), lastSignal: 'battery_disconnect', disconnects14: 0, routine: false });
         set(11, { lastCommAt: iso(t - 50 * H), lastSignal: 'ignition_no_gps' });
         set(19, { lastCommAt: iso(t - 30 * H), lastSignal: 'ignition_no_gps' });
         set(25, { lastCommAt: iso(t - 3 * D), lastSignal: '' });
@@ -127,7 +135,7 @@
     put('actions/a1', { kind: 'work_order', status: 'open', type: 'Call fleet manager', assignee: 'Alex', due: iso(t + D).slice(0, 10), text: 'Confirm the five vans were at the body shop.', serials: dev('coastal-plumbing', [3, 7, 11, 15, 19]), vehicles: veh('coastal-plumbing', [3, 7, 11, 15, 19]), customerId: 'coastal-plumbing', cause: 'unplugged', ticketId: 't1001', createdBy: 'u_demo_admin', createdAt: iso(t - 18 * H) });
     put('actions/a2', { kind: 'work_order', status: 'open', type: 'Installer visit', assignee: 'Metro Installs', due: iso(t + 3 * D).slice(0, 10), text: 'Check harness on Box Truck 414.', serials: dev('bayline-movers', [13]), vehicles: veh('bayline-movers', [13]), customerId: 'bayline-movers', cause: 'voltage', createdBy: 'u_demo_editor', createdAt: iso(t - 30 * H) });
     put('actions/a3', { kind: 'work_order', status: 'done', type: 'Installer visit', assignee: 'Metro Installs', due: iso(t - 6 * D).slice(0, 10), text: 'New box truck install.', serials: [], vehicles: [], customerId: 'bayline-movers', ticketId: 't1004', createdBy: 'u_demo_editor', createdAt: iso(t - 9 * D), doneAt: iso(t - 6 * D) });
-    return { v: 2, docs: docs, users: users, syncedAt: t, backups: [iso(t - 2 * H).slice(0, 10)] };
+    return { v: 3, docs: docs, users: users, syncedAt: t, backups: [iso(t - 2 * H).slice(0, 10)] };
   }
 
   /* ---------- the pretend server ---------- */
@@ -146,6 +154,7 @@
     for (var i = 1; i <= 12; i++) { var last = t - (10 + i * 13) * 60e3; list.push({ serial: 'G9N' + Math.floor(1000 + Math.random() * 8999), customerId: cid, vehicle: types[i % 3] + ' ' + i, lastCommAt: iso(last), lastSignal: 'normal', activatedAt: iso(t - 150 * D), lastTripAt: iso(last - 15 * 60e3), archived: false, milesToService: 300 + i * 250, source: 'mygeotab', database: db }); }
     Object.assign(list[4], { lastCommAt: iso(t - 70 * H), lastSignal: 'power_removed' });
     Object.assign(list[9], { lastCommAt: iso(t - 36 * H), lastSignal: 'ignition_no_gps' });
+    Object.assign(list[7], { vehicle: 'CNG Truck 8', isCng: true, lastCommAt: iso(t - 28 * H), lastTripAt: iso(t - 28 * H - 5 * 60e3), lastSignal: 'battery_disconnect', disconnects14: 1, routine: false });
     return list;
   }
 
