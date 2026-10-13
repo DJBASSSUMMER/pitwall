@@ -152,6 +152,7 @@ details summary{cursor:pointer; font-weight:600; font-size:14px}
       <span id="railSub">Reseller console</span>
     </div>
     <div class="nav" id="nav">
+      <a href="#mine" data-r="mine">My work <span class="n" id="nMine"></span></a>
       <a href="#portfolio" data-r="portfolio">Portfolio</a>
       <a href="#devices" data-r="devices">Device health <span class="n" id="nDev"></span></a>
       <a href="#support" data-r="support">Support <span class="n" id="nSup"></span></a>
@@ -159,7 +160,7 @@ details summary{cursor:pointer; font-weight:600; font-size:14px}
       <a href="#customers" data-r="customers">Customers</a>
       <a href="#fleet" data-r="fleet">Customer brief</a>
       <a href="#data" data-r="data">Data</a>
-      <a href="team.html">Team</a>
+      <a href="team.html" data-r="team">Team</a>
     </div>
     <div class="rail-foot" id="railFoot"></div>
   </nav>
@@ -610,27 +611,117 @@ function backupPanel(){
   return h + '</div></section>';
 }
 
+/* ---------- roles: each login gets its own home, menu and data ---------- */
+var ROLE = null, MYCID = null, MYNAME = '';
+var NAV = {
+  admin: ['portfolio', 'devices', 'support', 'work', 'customers', 'fleet', 'data', 'team'],
+  editor: ['portfolio', 'devices', 'support', 'work', 'customers', 'fleet', 'data', 'team'],
+  staff: ['mine', 'devices', 'support', 'work', 'fleet', 'team'],
+  customer: ['fleet', 'support', 'team']
+};
+var HOME = { admin: 'portfolio', editor: 'devices', staff: 'mine', customer: 'fleet' };
+var NAV_LABEL = { customer: { fleet: 'My fleet', support: 'Help requests', team: 'My account' } };
+window.pitwallApi('/api/state').then(function(s){
+  if (!s.user) return;
+  ROLE = NAV[s.user.role] ? s.user.role : 'staff'; MYCID = s.user.customerId || null; MYNAME = s.user.name || '';
+  if (ROLE === 'customer') { var nav = $('nav'), fl = nav.querySelector('[data-r="fleet"]'); if (fl) nav.insertBefore(fl, nav.firstChild); }
+  document.querySelectorAll('#nav a').forEach(function(a){
+    var r = a.getAttribute('data-r'), ok = NAV[ROLE].indexOf(r) >= 0;
+    a.hidden = !ok;
+    var lbl = NAV_LABEL[ROLE] && NAV_LABEL[ROLE][r];
+    if (lbl && a.firstChild && a.firstChild.nodeType === 3) a.firstChild.nodeValue = lbl + ' ';
+  });
+  schedule();
+}, function(){});
+function allowed(route){ return !ROLE || NAV[ROLE].indexOf(route) >= 0; }
+
+/* Staff home: what's on my plate. */
+function myTickets(){ return S.tickets.filter(function(t){ return isOpen(t) && t.assignee === S.uid; }).sort(function(a, b){ return (slaOf(a).left || 1e15) - (slaOf(b).left || 1e15); }); }
+function vMine(){
+  var mine = myTickets();
+  var claim = S.tickets.filter(function(t){ return isOpen(t) && !t.assignee; }).sort(function(a, b){ return PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority); });
+  var first = (MYNAME || '').split(' ')[0];
+  var wos = S.actions.filter(function(a){ return a.kind === 'work_order' && a.status !== 'done' && (a.createdBy === S.uid || (first && a.assignee && a.assignee.toLowerCase().indexOf(first.toLowerCase()) >= 0)); });
+  var overdue = mine.filter(function(t){ return slaOf(t).state === 'overdue'; }).length;
+  var hour = new Date().getHours(), greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  var h = '<header class="head"><div><span class="eyebrow">' + esc(new Date().toLocaleDateString('en-US', {weekday:'long', month:'short', day:'numeric'})) + '</span>'
+    + '<h1>' + greet + (first ? ', ' + esc(first) : '') + '</h1>'
+    + '<p class="lede">' + (mine.length ? 'You have ' + mine.length + ' open ticket' + (mine.length === 1 ? '' : 's') + (overdue ? ', ' + overdue + ' past its deadline' : '') + '.' : 'No tickets assigned to you right now.') + (claim.length ? ' ' + claim.length + ' unassigned ' + (claim.length === 1 ? 'needs' : 'need') + ' an owner.' : '') + '</p></div>'
+    + '<button type="button" class="btn primary" data-act="new-ticket">New ticket</button></header>';
+  h += '<section class="kpis">' + kpi('Assigned to you', mine.length, 'Open tickets', false) + kpi('Past deadline', overdue, 'Of yours', overdue > 0) + kpi('Unassigned', claim.length, 'Waiting for an owner', claim.length > 0) + kpi('Your work orders', wos.length, 'Open', false) + '</section>';
+  function rows(list, withClaim){
+    return '<div class="tbl-wrap"><table><thead><tr><th class="num">#</th><th>Subject</th><th>Priority</th><th>Status</th><th>Deadline</th>' + (withClaim ? '<th></th>' : '') + '</tr></thead><tbody>'
+      + list.map(function(t){ return '<tr class="click" data-act="open-ticket" data-id="' + esc(t._id) + '" tabindex="0"><td class="num">' + t.number + '</td><td style="min-width:220px"><strong>' + esc(t.subject) + '</strong><div class="sub">' + esc(custName(t.customerId)) + '</div></td><td>' + prioChip(t.priority) + '</td><td>' + statusChip(t.status) + '</td><td>' + slaChip(t) + '</td>'
+        + (withClaim ? '<td style="text-align:right"><button type="button" class="btn sm" data-act="claim" data-id="' + esc(t._id) + '">Assign to me</button></td>' : '') + '</tr>'; }).join('') + '</tbody></table></div>';
+  }
+  h += '<section class="panel"><div class="panel-h"><h2>Your tickets</h2><a href="#support">All tickets</a></div>' + (mine.length ? rows(mine, false) : '<div class="empty">Nothing assigned to you. Pick one up below.</div>') + '</section>';
+  if (claim.length) h += '<section class="panel"><div class="panel-h"><h2>Needs an owner</h2></div>' + rows(claim.slice(0, 8), true) + '</section>';
+  h += '<section class="panel"><div class="panel-h"><h2>Your work orders</h2><a href="#work">All work orders</a></div>' + (wos.length ? '<div class="panel-b">' + wos.map(actionLine).join('') + '</div>' : '<div class="empty">No open work orders of yours.</div>') + '</section>';
+  return h;
+}
+
+/* Fleet manager: only their own help requests, no internal notes, no staff controls. */
+function vCustSupport(){
+  if (S.sup.creating) return vCustNew();
+  if (S.sup.open) { var t = ticketById(S.sup.open); if (t) return vCustTicket(t); }
+  var open = S.tickets.filter(isOpen), closed = S.tickets.filter(function(t){ return !isOpen(t); });
+  var h = '<header class="head"><div><span class="eyebrow">' + esc(custName(MYCID)) + '</span><h1>Help requests</h1><p class="lede">Ask your reseller for help and follow every request in one place.</p></div><button type="button" class="btn primary" data-act="new-ticket">New request</button></header>';
+  function list(arr){ return '<div class="tbl-wrap"><table><thead><tr><th class="num">#</th><th>Request</th><th>Status</th><th>Last update</th></tr></thead><tbody>' + arr.map(function(t){ return '<tr class="click" data-act="open-ticket" data-id="' + esc(t._id) + '" tabindex="0"><td class="num">' + t.number + '</td><td><strong>' + esc(t.subject) + '</strong></td><td>' + statusChip(t.status) + '</td><td class="sub">' + esc(ago(E.time(t.updatedAt))) + '</td></tr>'; }).join('') + '</tbody></table></div>'; }
+  h += '<section class="panel"><div class="panel-h"><h2>Open</h2></div>' + (open.length ? list(open) : '<div class="empty">No open requests.</div>') + '</section>';
+  if (closed.length) h += '<section class="panel"><div class="panel-h"><h2>Finished</h2></div>' + list(closed) + '</section>';
+  return h;
+}
+function vCustTicket(t){
+  var h = '<div><button type="button" class="btn ghost" data-act="tickets-back" style="padding-left:0">← All requests</button></div>';
+  h += '<header class="head"><div><span class="eyebrow">Request #' + t.number + '</span><h1>' + esc(t.subject) + '</h1><div class="row">' + statusChip(t.status) + '</div></div></header>';
+  h += '<section style="display:flex; flex-direction:column; gap:14px; max-width:760px"><div class="thread">';
+  if (!S.sup.msgs.length) h += '<p class="sub">Loading conversation…</p>';
+  S.sup.msgs.forEach(function(m){
+    var at = esc(dateTimeLabel(E.time(m.at)));
+    if (m.kind === 'event') { if (m.event === 'created') h += '<div class="msg event">Request opened · ' + at + '</div>'; return; }
+    if (m.kind === 'note') return;
+    var label = m.kind === 'request' ? 'You' : who(m.by) + ' (your reseller)';
+    h += '<article class="msg ' + esc(m.kind) + '"><div class="meta"><span>' + label + '</span><span>' + at + '</span></div><div class="text">' + esc(m.body) + '</div></article>';
+  });
+  h += '</div>';
+  if (isOpen(t)) h += '<form id="custMsgForm" class="panel" novalidate><div class="panel-b"><div class="field"><label for="custMsg">Add a message</label><textarea class="input" id="custMsg" rows="4"></textarea></div><div class="row"><button type="submit" class="btn primary">Send</button></div></div></form>';
+  else h += '<p class="sub">This request is ' + esc(STATUS[t.status].toLowerCase()) + '. Start a new request if you need more help.</p>';
+  return h + '</section>';
+}
+function vCustNew(){
+  var p = S.sup.creating || {};
+  return '<div><button type="button" class="btn ghost" data-act="tickets-back" style="padding-left:0">← All requests</button></div>'
+    + '<header class="head"><div><span class="eyebrow">' + esc(custName(MYCID)) + '</span><h1>New help request</h1><p class="lede">Tell your reseller what you need. You’ll see their replies here.</p></div></header>'
+    + '<form id="custNewForm" class="panel" novalidate><div class="panel-b" style="max-width:760px">'
+    + '<div class="field"><label for="cnSubject">What do you need help with?</label><input class="input" id="cnSubject" autocomplete="off" value="' + esc(p.subject || '') + '" placeholder="e.g. Truck 12 isn’t showing on the map"></div>'
+    + '<div class="field"><label for="cnBody">Details</label><textarea class="input" id="cnBody" rows="5"></textarea></div>'
+    + '<div class="field"><label for="cnContact">Best way to reach you</label><input class="input" id="cnContact" autocomplete="off" value="' + esc(MYNAME) + '"></div>'
+    + '<div class="row"><button type="submit" class="btn primary">Send request</button><button type="button" class="btn" data-act="tickets-back">Cancel</button></div></div></form>';
+}
+
 /* ---------- render ---------- */
 function render(){
-  var route = (location.hash || '#portfolio').slice(1) || 'portfolio';
+  var route = (location.hash || '').slice(1) || (ROLE ? HOME[ROLE] : 'portfolio');
+  if (ROLE && (!location.hash || !allowed(route))) { route = allowed(route) ? route : HOME[ROLE]; history.replaceState(null, '', '#' + route); }
   S.route = route;
   document.querySelectorAll('#nav a').forEach(function(a){ if (a.getAttribute('data-r') === route) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
   var v = $('view');
   if (S.failed) { v.innerHTML = '<div class="empty"><h1>Saved data isn’t available here</h1><p class="lede">This page couldn’t reach the Pitwall Pi. Check the Pi is on, then reload.</p></div>'; return; }
   if (!S.db) { v.innerHTML = '<div class="empty"><h1>Connecting…</h1></div>'; return; }
-  if (!S.ready.customers || !S.ready.devices || !S.ready.settings) { v.innerHTML = '<div class="empty"><h1>Loading saved data…</h1></div>'; return; }
+  if (!ROLE || !S.ready.customers || !S.ready.devices || !S.ready.settings) { v.innerHTML = '<div class="empty"><h1>Loading saved data…</h1></div>'; return; }
   recompute();
   var silentN = Object.keys(A.cls).filter(function(k){ return A.cls[k].silent; }).length;
   var openT = S.tickets.filter(isOpen);
   $('nDev').textContent = silentN || '';
   $('nSup').textContent = openT.length || '';
   $('nWork').textContent = S.actions.filter(function(a){ return a.kind === 'work_order' && a.status !== 'done'; }).length || '';
-  $('railSub').textContent = 'Demo · ' + S.customers.length + ' customer' + (S.customers.length === 1 ? '' : 's');
+  if ($('nMine')) $('nMine').textContent = ROLE === 'staff' ? (myTickets().length || '') : '';
+  $('railSub').textContent = ROLE === 'customer' ? custName(MYCID) : 'Demo · ' + S.customers.length + ' customer' + (S.customers.length === 1 ? '' : 's');
   $('railFoot').innerHTML = '<span>Device data as of ' + esc(dateTimeLabel(A.asOf)) + '</span><span>' + (S.meta && S.meta.source === 'example' ? 'Example dataset' : S.meta && S.meta.source === 'mygeotab' ? 'Live from MyGeotab' : 'Imported data') + '</span>';
   var html = '';
   if (S.meta && S.meta.source === 'example' && route !== 'data') html += '<div class="banner"><span>You’re looking at an example dataset of fictional companies.</span><a class="btn sm" href="#data">Connect MyGeotab</a></div>';
   if (!S.devices.length && route !== 'data' && route !== 'support') html += emptyAll();
-  else html += ({portfolio:vPortfolio, devices:vDevices, support:vSupport, work:vWork, customers:vCustomers, fleet:vFleet, data:vData}[route] || vPortfolio)();
+  else html += ({portfolio:vPortfolio, devices:vDevices, support:(ROLE === 'customer' ? vCustSupport : vSupport), mine:vMine, work:vWork, customers:vCustomers, fleet:vFleet, data:vData}[route] || vPortfolio)();
 
   /* Keep what someone is typing when a live update re-renders the view. */
   var keep = {}, focusId = document.activeElement && v.contains(document.activeElement) ? document.activeElement.id : '';
@@ -951,15 +1042,15 @@ function custDetail(){
 
 /* Customer brief (what the fleet manager sees) */
 function vFleet(){
-  var cid = S.fleet.customerId || (S.customers[0] && S.customers[0].id);
+  var cid = ROLE === 'customer' ? MYCID : (S.fleet.customerId || (S.customers[0] && S.customers[0].id));
   var c = A.custById[cid]; if (!c) return '<div class="empty">No customers yet.</div>';
   var hl = A.health[cid] || {};
   var mine = S.devices.filter(function(d){ return d.customerId === cid && !d.archived; });
   var silent = mine.filter(function(d){ return A.cls[d.serial].silent; });
   var groups = {}; silent.forEach(function(d){ var cl = A.cls[d.serial]; var k = cl.cause + (cl.batch ? '~b' : ''); (groups[k] = groups[k] || {cause:cl.cause, batch:cl.batch, list:[]}).list.push(d); });
   var overdue = mine.filter(function(d){ return d.milesToService != null && d.milesToService < 0; }).sort(function(a, b){ return a.milesToService - b.milesToService; });
-  var h = '<header class="head"><div><span class="eyebrow">Customer brief · preview of what ' + esc(c.name) + ' sees</span><h1>' + esc(c.name) + ': your fleet this week</h1><p class="lede">A short, phone-friendly summary for the fleet manager. Their answers and help requests open tickets in Support.</p></div>'
-    + '<div class="field" style="flex:0 1 280px"><label for="fleetCust">Customer</label><select class="input" id="fleetCust" data-live>' + S.customers.map(function(x){ return '<option value="' + esc(x.id) + '"' + (x.id === cid ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('') + '</select></div></header>';
+  var h = '<header class="head"><div><span class="eyebrow">' + (ROLE === 'customer' ? 'Your fleet' : 'Customer brief · preview of what ' + esc(c.name) + ' sees') + '</span><h1>' + esc(c.name) + ': your fleet this week</h1><p class="lede">' + (ROLE === 'customer' ? 'What needs your attention, and a quick way to ask your reseller for help.' : 'A short, phone-friendly summary for the fleet manager. Their answers and help requests open tickets in Support.') + '</p></div>'
+    + (ROLE === 'customer' ? '</header>' : '<div class="field" style="flex:0 1 280px"><label for="fleetCust">Customer</label><select class="input" id="fleetCust" data-live>' + S.customers.map(function(x){ return '<option value="' + esc(x.id) + '"' + (x.id === cid ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('') + '</select></div></header>');
   h += '<div style="max-width:560px; display:flex; flex-direction:column; gap:14px">';
   h += '<section class="kpis">' + kpi('Trackers reporting', pct(hl.reportingPct), (hl.active || 0) + ' vehicles', hl.reportingPct != null && hl.reportingPct < 95) + kpi('Maintenance on schedule', pct(hl.pmPct), overdue.length + ' overdue', overdue.length > 0) + '</section>';
   Object.keys(groups).forEach(function(k){
@@ -1126,6 +1217,7 @@ document.addEventListener('click', function(ev){
     case 'ticket-cust': startNewTicket({customerId:id}); break;
     case 'open-ticket': openTicket(id); break;
     case 'tickets-back': openTicket(null); break;
+    case 'claim': write(updateTicket(id, {assignee:S.uid, status:(ticketById(id) || {}).status === 'new' ? 'open' : (ticketById(id) || {}).status}, {event:'assigned', value:S.uid}), 'Assigned to you'); break;
     case 'sf': S.sup.status = v; schedule(); break;
     case 'smine': S.sup.mine = !S.sup.mine; schedule(); break;
     case 'tab': S.sup.tab = v; schedule(); break;
@@ -1207,6 +1299,13 @@ document.addEventListener('submit', function(ev){
     if (form.ticketId) rec.ticketId = form.ticketId;
     var p = addAction(rec).then(function(){ if (form.ticketId) return updateTicket(form.ticketId, {}, {event:'workorder', value:type + ' for ' + vehicles.length + ' vehicle' + (vehicles.length === 1 ? '' : 's')}); });
     write(p, 'Work order created').then(function(ok){ if (ok) { S.dev.form = null; S.dev.sel = {}; schedule(); } });
+  } else if (f.id === 'custMsgForm') {
+    var ct = ticketById(S.sup.open), cb = $('custMsg').value.trim(); if (!ct || !cb) { toast('Write a message first.'); return; }
+    write(S.db.collection('tickets/' + ct._id + '/messages').add({kind:'request', body:cb, from:MYNAME, by:S.uid, at:nowIso()}), 'Sent to your reseller').then(function(ok){ if (ok) $('custMsg').value = ''; });
+  } else if (f.id === 'custNewForm') {
+    var cs = $('cnSubject').value.trim(); if (!cs) { toast('Tell us what you need help with.'); $('cnSubject').focus(); return; }
+    var cbtn = f.querySelector('button[type="submit"]'); cbtn.disabled = true;
+    write(createTicket({subject:cs, customerId:MYCID, category:'Other', priority:'Normal', contact:$('cnContact').value.trim() || MYNAME, source:'customer'}, {kind:'request', from:MYNAME, body:$('cnBody').value.trim()})).then(function(r){ cbtn.disabled = false; if (r && r.id) { toast('Request #' + r.number + ' sent'); openTicket(r.id); } });
   } else if (f.id === 'newTicket') {
     var subject = $('ntSubject').value.trim(), cust = $('ntCustomer').value;
     if (!subject) { toast('Add a subject.'); $('ntSubject').focus(); return; }

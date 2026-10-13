@@ -4,7 +4,7 @@
    Nothing is sent anywhere. */
 (function () {
   'use strict';
-  var KEY = 'pitwall-demo-v1', H = 3600e3, D = 24 * H;
+  var KEY = 'pitwall-demo-v2', H = 3600e3, D = 24 * H;
   var realFetch = window.fetch.bind(window);
   var bc = 'BroadcastChannel' in window ? new BroadcastChannel('pitwall-demo') : null;
   var state = null, streams = [];
@@ -13,7 +13,7 @@
   function iso(ms) { return new Date(ms).toISOString(); }
   function load() {
     try { state = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { state = null; }
-    if (!state || !state.docs || state.v !== 1) { state = seed(); save(); }
+    if (!state || !state.docs || state.v !== 2) { state = seed(); save(); }
     rebase();
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* storage full or blocked: keep working in memory */ } }
@@ -51,7 +51,8 @@
     var users = [
       { id: 'u_demo_admin', username: 'admin', name: 'Alex Rivera', role: 'admin', password: 'demo' },
       { id: 'u_demo_editor', username: 'editor', name: 'Erin Park', role: 'editor', password: 'demo' },
-      { id: 'u_demo_staff', username: 'staff', name: 'Sam Ortiz', role: 'staff', password: 'demo' }
+      { id: 'u_demo_staff', username: 'staff', name: 'Sam Ortiz', role: 'staff', password: 'demo' },
+      { id: 'u_demo_fleet', username: 'fleet', name: 'Dana Brooks', role: 'customer', customerId: 'coastal-plumbing', password: 'demo' }
     ];
     var customers = [
       { id: 'coastal-plumbing', name: 'Coastal Plumbing Co', database: 'coastal_plumbing', lastAdminLoginAt: iso(t - 2 * D), renewalAt: iso(t + 210 * D), make: ['Van', 'Service Truck'], n: 40 },
@@ -126,7 +127,7 @@
     put('actions/a1', { kind: 'work_order', status: 'open', type: 'Call fleet manager', assignee: 'Alex', due: iso(t + D).slice(0, 10), text: 'Confirm the five vans were at the body shop.', serials: dev('coastal-plumbing', [3, 7, 11, 15, 19]), vehicles: veh('coastal-plumbing', [3, 7, 11, 15, 19]), customerId: 'coastal-plumbing', cause: 'unplugged', ticketId: 't1001', createdBy: 'u_demo_admin', createdAt: iso(t - 18 * H) });
     put('actions/a2', { kind: 'work_order', status: 'open', type: 'Installer visit', assignee: 'Metro Installs', due: iso(t + 3 * D).slice(0, 10), text: 'Check harness on Box Truck 414.', serials: dev('bayline-movers', [13]), vehicles: veh('bayline-movers', [13]), customerId: 'bayline-movers', cause: 'voltage', createdBy: 'u_demo_editor', createdAt: iso(t - 30 * H) });
     put('actions/a3', { kind: 'work_order', status: 'done', type: 'Installer visit', assignee: 'Metro Installs', due: iso(t - 6 * D).slice(0, 10), text: 'New box truck install.', serials: [], vehicles: [], customerId: 'bayline-movers', ticketId: 't1004', createdBy: 'u_demo_editor', createdAt: iso(t - 9 * D), doneAt: iso(t - 6 * D) });
-    return { v: 1, docs: docs, users: users, syncedAt: t, backups: [iso(t - 2 * H).slice(0, 10)] };
+    return { v: 2, docs: docs, users: users, syncedAt: t, backups: [iso(t - 2 * H).slice(0, 10)] };
   }
 
   /* ---------- the pretend server ---------- */
@@ -159,13 +160,18 @@
     'POST /api/demo/reset': function () { localStorage.removeItem(KEY); state = seed(); save(); return [200, { ok: true }]; }
   };
   var authed = {
-    'GET /api/users': function (b, u) { return [200, { users: state.users.map(function (x) { return { id: x.id, name: x.name, username: x.username, role: x.role, isMe: x.id === u.id }; }) }]; },
+    'GET /api/users': function (b, u) {
+      if (u.role === 'customer') return [200, { users: state.users.filter(function (x) { return x.role !== 'customer' || x.id === u.id; }).map(function (x) { return { id: x.id, name: x.name, isMe: x.id === u.id }; }) }];
+      return [200, { users: state.users.map(function (x) { return { id: x.id, name: x.name, username: x.username, role: x.role, customerId: x.customerId || null, isMe: x.id === u.id }; }) }];
+    },
     'POST /api/users': function (b, u) {
       if (u.role !== 'admin') return [403, { error: 'Only admins can add people.' }];
       var un = String(b.username || '').trim().toLowerCase();
       if (!/^[a-z0-9._@-]{2,64}$/.test(un) || !b.password || String(b.password).length < 8) return [400, { error: 'Use a username of letters and numbers and a password of at least 8 characters.' }];
       if (state.users.some(function (x) { return x.username === un; })) return [409, { error: 'That username is taken.' }];
-      state.users.push({ id: 'u_' + Math.random().toString(36).slice(2, 12), username: un, name: String(b.name || un).trim(), role: ['admin', 'editor', 'staff'].indexOf(b.role) >= 0 ? b.role : 'staff', password: String(b.password) });
+      var role = ['admin', 'editor', 'staff', 'customer'].indexOf(b.role) >= 0 ? b.role : 'staff';
+      if (role === 'customer' && !state.docs['customers/' + b.customerId]) return [400, { error: 'Choose which customer this fleet manager belongs to.' }];
+      state.users.push({ id: 'u_' + Math.random().toString(36).slice(2, 12), username: un, name: String(b.name || un).trim(), role: role, customerId: role === 'customer' ? String(b.customerId) : undefined, password: String(b.password) });
       save(); return [200, { ok: true }];
     },
     'POST /api/users/password': function (b, u) {
@@ -183,9 +189,10 @@
     },
     'POST /api/db': function (b, u) {
       var op = b.op, p = b.path;
-      if (op === 'list') return valid(p, false) ? [200, { docs: list(p) }] : [400, { error: 'bad path' }];
+      if (op === 'list') return valid(p, false) ? [200, { docs: list(p).filter(function (x) { return scopeDoc(u, p + '/' + x.id, x.data); }) }] : [400, { error: 'bad path' }];
       if (!valid(p, op !== 'add')) return [400, { error: 'bad path' }];
-      if (op === 'get') { var d = state.docs[p]; return [200, { exists: !!d, data: d ? d.data : null }]; }
+      if (op === 'get') { var d = state.docs[p], vis = d && scopeDoc(u, p, d.data); return [200, { exists: !!vis, data: vis ? d.data : null }]; }
+      if (u.role === 'customer') return customerWrite(u, op, p, b);
       if (ADMIN_PATHS.test(p) && !canEdit(u)) return [403, { code: 'invalid_argument', error: 'Only admins and editors can change this.' }];
       if (op === 'set') { setDoc(p, b.data || {}); return [200, { ok: true }]; }
       if (op === 'update') { var m = Object.assign({}, state.docs[p] ? state.docs[p].data : {}, clone(b.data || {})); Object.keys(m).forEach(function (k) { if (m[k] && m[k].__delete__ === true) delete m[k]; }); setDoc(p, m); return [200, { ok: true }]; }
@@ -229,10 +236,55 @@
       return [200, { ok: true, syncMinutes: 15 }];
     },
     'GET /api/geotab/info': function () { return [200, { syncMinutes: 15, syncing: false, demo: true }]; },
-    'GET /api/backups': function () { return [200, { local: { daily: 12, monthly: 3, latest: state.backups[state.backups.length - 1] }, drives: [], configured: 0 }]; },
+    'GET /api/backups': function (b, u) { if (u.role === 'customer') return [403, { error: 'Not allowed for this account.' }]; return [200, { local: { daily: 12, monthly: 3, latest: state.backups[state.backups.length - 1] }, drives: [], configured: 0 }]; },
     'POST /api/backups': function (b, u) { if (!canEdit(u)) return [403, { error: 'Only admins and editors can run a backup.' }]; state.backups.push(iso(now()).slice(0, 10)); save(); return [200, { local: { daily: 12, monthly: 3, latest: iso(now()).slice(0, 10) }, drives: [], configured: 0 }]; }
   };
-  function strip(u) { return { id: u.id, name: u.name, username: u.username, role: u.role }; }
+  function strip(u) { return { id: u.id, name: u.name, username: u.username, role: u.role, customerId: u.customerId || null }; }
+
+  /* Fleet-manager logins only see their own company: its vehicles and record,
+     its tickets without internal notes, and nothing else. */
+  function scopeDoc(u, p, data) {
+    if (!u || u.role !== 'customer') return true;
+    var cid = u.customerId, s = p.split('/');
+    if (s[0] === 'devices') return !!data && data.customerId === cid;
+    if (s[0] === 'customers') return s[1] === cid;
+    if (s[0] === 'settings') return s[1] === 'meta';
+    if (s[0] === 'counters') return s[1] === 'tickets';
+    if (s[0] === 'tickets') {
+      var t = state.docs['tickets/' + s[1]];
+      if (!t || t.data.customerId !== cid) return false;
+      if (s.length === 2) return true;
+      return s[2] === 'messages' && !(data && data.kind === 'note');
+    }
+    return false;
+  }
+  function customerWrite(u, op, p, b) {
+    var s = p.split('/'), cid = u.customerId, deny = [403, { code: 'invalid_argument', error: 'Not allowed for this account.' }], t = iso(now());
+    if (p === 'counters/tickets') {
+      if (op === 'acquire') return [200, { acquired: true }];
+      if (op === 'update' && b.data && Number.isInteger(b.data.next)) { setDoc(p, { next: b.data.next }); return [200, { ok: true }]; }
+      return deny;
+    }
+    if (s[0] === 'tickets' && s.length === 2 && op === 'set') {
+      var d = b.data || {};
+      if (state.docs[p] || d.customerId !== cid) return deny;
+      setDoc(p, { number: +d.number || +s[1].slice(1), subject: String(d.subject || 'Help request').slice(0, 200), customerId: cid, category: 'Other', priority: 'Normal', status: 'new', assignee: null,
+        contact: String(d.contact || u.name), serials: d.serials || [], vehicles: d.vehicles || [], source: d.source === 'brief' ? 'brief' : 'customer', briefKey: d.briefKey, briefPeriod: d.briefPeriod,
+        createdBy: u.id, createdAt: t, updatedAt: t, firstResponseAt: null, resolvedAt: null });
+      return [200, { ok: true }];
+    }
+    if (s[0] === 'tickets' && s.length === 3 && s[2] === 'messages' && op === 'add') {
+      var tk = state.docs['tickets/' + s[1]], m = b.data || {}, id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+      if (!tk || tk.data.customerId !== cid) return deny;
+      if (m.kind === 'event' && m.event === 'created') { setDoc(p + '/' + id, { kind: 'event', event: 'created', by: u.id, at: t }); return [200, { id: id }]; }
+      if (m.kind !== 'request') return deny;
+      setDoc(p + '/' + id, { kind: 'request', body: String(m.body || ''), from: u.name, by: u.id, at: t });
+      var nd = Object.assign({}, tk.data, { updatedAt: t }); if (nd.status === 'waiting' || nd.status === 'resolved') { nd.status = 'open'; nd.resolvedAt = null; }
+      setDoc('tickets/' + s[1], nd);
+      return [200, { id: id }];
+    }
+    return deny;
+  }
 
   function handle(method, path, body) {
     var key = method + ' ' + path;

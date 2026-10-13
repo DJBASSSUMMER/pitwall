@@ -19,7 +19,8 @@
       <div class="field"><label for="aName">Name</label><input id="aName" autocomplete="off"></div>
       <div class="field"><label for="aUser">Username</label><input id="aUser" autocomplete="off" autocapitalize="none"></div>
       <div class="field"><label for="aPass">Starting password</label><input id="aPass" type="text" autocomplete="off" placeholder="At least 8 characters"></div>
-      <div class="field"><label for="aRole">Role</label><select id="aRole"><option value="staff">Staff</option><option value="editor">Editor</option><option value="admin">Admin</option></select></div>
+      <div class="field"><label for="aRole">Role</label><select id="aRole"><option value="staff">Staff</option><option value="editor">Editor</option><option value="admin">Admin</option><option value="customer">Fleet manager (client login)</option></select></div>
+      <div class="field" id="aCustRow" hidden><label for="aCust">Their company</label><select id="aCust"></select></div>
       <button class="btn primary" type="submit">Add person</button>
     </form>
   </section>
@@ -39,12 +40,12 @@
   function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function call(path, body){ return fetch(path, { method: body ? 'POST' : 'GET', headers:{'Content-Type':'application/json'}, body: body ? JSON.stringify(body) : undefined }).then(function(r){ if (r.status === 401) { location.href = 'login.html'; throw new Error(''); } return r.json().then(function(j){ if (!r.ok) throw new Error(j.error || 'Failed'); return j; }); }); }
   function toast(m){ var t = $('toast'); t.textContent = m; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(function(){ t.hidden = true; }, 4000); }
-  var ROLE = { admin:'Admin', editor:'Editor', staff:'Staff' };
+  var ROLE = { admin:'Admin', editor:'Editor', staff:'Staff', customer:'Fleet manager' };
   function load(){
     Promise.all([call('/api/state'), call('/api/users')]).then(function(r){
       me = r[0].user; $('addBox').hidden = me.role !== 'admin';
       $('rows').innerHTML = r[1].users.map(function(u){
-        return '<tr><td>' + esc(u.name) + (u.isMe ? ' <span class="muted">(you)</span>' : '') + '</td><td>' + esc(u.username) + '</td><td>' + ROLE[u.role] + '</td><td class="r">'
+        return '<tr><td>' + esc(u.name) + (u.isMe ? ' <span class="muted">(you)</span>' : '') + '</td><td>' + esc(u.username) + '</td><td>' + (ROLE[u.role] || '') + '</td><td class="r">'
           + (me.role === 'admin' && !u.isMe ? '<button class="btn sm" data-reset="' + esc(u.id) + '">Reset password</button> <button class="btn sm" data-rm="' + esc(u.id) + '" data-n="' + esc(u.name) + '">Remove</button>' : '') + '</td></tr>';
       }).join('');
     }).catch(function(e){ if (e.message) toast(e.message); });
@@ -56,10 +57,12 @@
     if (b.dataset.reset) { var np = Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 6); call('/api/users/password', { id: b.dataset.reset, password: np }).then(function(){ toast('New password: ' + np + '. Give it to them; they can change it here.'); }, function(e){ toast(e.message); }); }
   });
   $('add').addEventListener('submit', function(ev){ ev.preventDefault();
-    call('/api/users', { name: $('aName').value.trim(), username: $('aUser').value.trim(), password: $('aPass').value, role: $('aRole').value })
+    call('/api/users', { name: $('aName').value.trim(), username: $('aUser').value.trim(), password: $('aPass').value, role: $('aRole').value, customerId: $('aCust').value })
       .then(function(){ toast('Added ' + $('aName').value.trim() + '. Give them their username and starting password.'); $('add').reset(); load(); }, function(e){ toast(e.message); }); });
   $('pw').addEventListener('submit', function(ev){ ev.preventDefault();
     call('/api/users/password', { password: $('newPw').value }).then(function(){ toast('Password changed'); $('newPw').value = ''; }, function(e){ toast(e.message); }); });
+  $('aRole').addEventListener('change', function(){ $('aCustRow').hidden = $('aRole').value !== 'customer'; });
+  call('/api/db', { op: 'list', path: 'customers' }).then(function(r){ $('aCust').innerHTML = r.docs.map(function(d){ return '<option value="' + esc(d.id) + '">' + esc(d.data.name) + '</option>'; }).join(''); }, function(){});
   load();
 })();
 </script>

@@ -11,7 +11,7 @@
   bar.innerHTML = '<span><b>Pitwall demo</b><span class="long"> · Sample fleets for made-up companies. Your changes stay in this browser only.</span></span>'
     + '<span class="r"><span id="pwdemoWho"></span><button type="button" id="pwdemoReset">Reset demo</button><button type="button" id="pwdemoOut">Sign out</button></span>';
   document.body.insertBefore(bar, document.body.firstChild);
-  var ROLE = { admin: 'Admin', editor: 'Editor', staff: 'Staff' };
+  var ROLE = { admin: 'Admin', editor: 'Editor', staff: 'Staff', customer: 'Fleet manager' };
   fetch('api/state').then(function (r) { return r.json(); }).then(function (s) { if (s.user) document.getElementById('pwdemoWho').textContent = 'Signed in as ' + s.user.name + ' (' + ROLE[s.user.role] + ')'; });
   document.getElementById('pwdemoOut').addEventListener('click', function () { fetch('api/logout', { method: 'POST', body: '{}' }).then(function () { location.href = 'login.html'; }); });
   var rb = document.getElementById('pwdemoReset');
