@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pitwall demo sign in</title>
+<link rel="stylesheet" href="pages.css">
+<script src="demo-api.js"></script>
+</head>
+<body class="center">
+<main class="card">
+  <div class="brand"><svg width="26" height="26" viewBox="0 0 26 26" fill="none" stroke="#C2410C" stroke-width="2" aria-hidden="true"><path d="M3 9h20M3 17h20M9 3v20M17 3v20"/></svg>Pitwall</div>
+  <h1 id="title">Sign in</h1>
+  <p class="lede" id="lede">This is a working demo of Pitwall, the device-health and support console for Geotab resellers.</p>
+  <div class="demo-acc" aria-label="Demo accounts">
+    <p><strong>Try the demo.</strong> Pick a role to sign in. Everything here is sample data, and your changes stay in this browser.</p>
+    <div class="demo-btns">
+      <button type="button" class="btn" data-u="admin">Admin<span>Everything, including the team</span></button>
+      <button type="button" class="btn" data-u="editor">Editor<span>Adds MyGeotab databases and syncs</span></button>
+      <button type="button" class="btn" data-u="staff">Staff<span>Works tickets and work orders</span></button>
+    </div>
+    <p class="muted">Or type a username (admin, editor or staff) with the password <code>demo</code>.</p>
+  </div>
+  <form id="f" novalidate>
+    <div class="field" id="nameRow" hidden><label for="name">Your name</label><input id="name" autocomplete="name"></div>
+    <div class="field"><label for="username">Username</label><input id="username" autocomplete="username" autocapitalize="none" required></div>
+    <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required></div>
+    <p class="err" id="err" role="alert" hidden></p>
+    <button class="btn primary" type="submit" id="go">Sign in</button>
+  </form>
+</main>
+<script>
+(function(){
+  var setup = false, $ = function(id){ return document.getElementById(id); };
+  fetch('/api/state').then(function(r){ return r.json(); }).then(function(s){
+    if (s.user) { location.href = './'; return; }
+    if (s.setupNeeded) {
+      setup = true;
+      $('title').textContent = 'Set up Pitwall';
+      $('lede').textContent = 'Create the first admin account for this Pi. You’ll use it to sign in and to add your team.';
+      $('nameRow').hidden = false; $('go').textContent = 'Create admin account';
+      $('password').setAttribute('autocomplete', 'new-password');
+    }
+    $(setup ? 'name' : 'username').focus();
+  });
+  $('f').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    var b = { username: $('username').value.trim(), password: $('password').value, name: $('name').value.trim() };
+    if (!b.username || !b.password) return show('Enter a username and password.');
+    if (setup && b.password.length < 8) return show('Use a password of at least 8 characters.');
+    $('go').disabled = true;
+    fetch(setup ? '/api/setup' : '/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(b) })
+      .then(function(r){ return r.json().then(function(j){ if (!r.ok) throw new Error(j.error || 'Sign-in failed.'); location.href = './'; }); })
+      .catch(function(e){ $('go').disabled = false; show(e.message === 'Failed to fetch' ? 'Can’t reach the Pi. Check it’s on and on your network.' : e.message); });
+  });
+  document.querySelectorAll('[data-u]').forEach(function(b){ b.addEventListener('click', function(){ $('username').value = b.getAttribute('data-u'); $('password').value = 'demo'; $('f').requestSubmit(); }); });
+  function show(m){ var e = $('err'); e.textContent = m; e.hidden = false; }
+})();
+</script>
+</body>
+</html>
