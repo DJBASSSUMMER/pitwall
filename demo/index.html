@@ -161,6 +161,7 @@ details summary{cursor:pointer; font-weight:600; font-size:14px}
       <a href="#work" data-r="work">Work orders <span class="n" id="nWork"></span></a>
       <a href="#customers" data-r="customers">Customers</a>
       <a href="#fleet" data-r="fleet">Customer brief</a>
+      <a href="cameras.html" data-r="cameras">Cameras</a>
       <a href="#data" data-r="data">Data</a>
       <a href="team.html" data-r="team">Team</a>
     </div>
@@ -629,9 +630,9 @@ function backupPanel(){
 /* ---------- roles: each login gets its own home, menu and data ---------- */
 var ROLE = null, MYCID = null, MYNAME = '';
 var NAV = {
-  admin: ['portfolio', 'devices', 'support', 'work', 'customers', 'fleet', 'data', 'team'],
-  editor: ['portfolio', 'devices', 'support', 'work', 'customers', 'fleet', 'data', 'team'],
-  staff: ['mine', 'devices', 'support', 'work', 'fleet', 'team'],
+  admin: ['portfolio', 'devices', 'support', 'work', 'customers', 'fleet', 'cameras', 'data', 'team'],
+  editor: ['portfolio', 'devices', 'support', 'work', 'customers', 'fleet', 'cameras', 'data', 'team'],
+  staff: ['mine', 'devices', 'support', 'work', 'fleet', 'cameras', 'team'],
   customer: ['fleet', 'support', 'team']
 };
 var HOME = { admin: 'portfolio', editor: 'devices', staff: 'mine', customer: 'fleet' };
