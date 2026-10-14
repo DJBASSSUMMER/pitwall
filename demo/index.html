@@ -159,7 +159,6 @@ details summary{cursor:pointer; font-weight:600; font-size:14px}
       <a href="#portfolio" data-r="portfolio">Portfolio</a>
       <a href="#devices" data-r="devices">Device health <span class="n" id="nDev"></span></a>
       <a href="#support" data-r="support">Support <span class="n" id="nSup"></span></a>
-      <a href="#work" data-r="work">Work orders <span class="n" id="nWork"></span></a>
       <a href="#customers" data-r="customers">Customers</a>
       <a href="#fleet" data-r="fleet">Customer brief</a>
       <a href="#data" data-r="data">Data</a>
@@ -429,7 +428,6 @@ var S = {
   ready:{}, customers:[], devices:[], deviceDocIds:[], meta:null, flags:{}, actions:[], tickets:[],
   route:'portfolio', qFilter:'all', search:'',
   dev:{cause:'', customerId:'', text:'', sel:{}, open:null, form:null},
-  work:{status:'open'},
   cust:{open:null},
   fleet:{customerId:''},
   sup:{status:'open', mine:false, priority:'', customerId:'', text:'', open:null, creating:null, tab:'reply', msgs:[], unsub:null},
@@ -446,7 +444,6 @@ var PRIORITY_TONE = { Urgent:'t-crit', High:'t-warn', Normal:'t-muted', Low:'t-m
 var CATEGORIES = ['Device issue','Installation','Account access','Reports & data','Training','Other'];
 /* Hours to first response and to resolution, by priority. */
 var SLA = { Urgent:{resp:1, res:8}, High:{resp:4, res:24}, Normal:{resp:8, res:72}, Low:{resp:24, res:168} };
-var WO_TYPES = ['Installer visit','Call fleet manager','Call driver'];
 
 /* ---------- helpers ---------- */
 function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
@@ -562,7 +559,6 @@ function subscribe(){
   }, fail);
   db.collection('settings').onSnapshot(function(s){ s.docs.forEach(function(d){ if (d.id === 'meta') S.meta = d.data(); if (d.id === 'geotab') S.geoCfg = d.data(); }); S.ready.settings = true; schedule(); }, fail);
   db.collection('flags').onSnapshot(function(s){ var m = {}; s.docs.forEach(function(d){ m[d.id] = d.data(); }); S.flags = m; schedule(); }, fail);
-  db.collection('actions').orderBy('createdAt', 'desc').limit(500).onSnapshot(function(s){ S.actions = s.docs.map(function(d){ return Object.assign({_id:d.id}, d.data()); }); schedule(); }, fail);
   db.collection('tickets').onSnapshot(function(s){ S.tickets = s.docs.map(function(d){ return Object.assign({_id:d.id}, d.data()); }); S.ready.tickets = true; schedule(); }, fail);
 }
 
@@ -630,9 +626,9 @@ function backupPanel(){
 /* ---------- roles: each login gets its own home, menu and data ---------- */
 var ROLE = null, MYCID = null, MYNAME = '';
 var NAV = {
-  admin: ['portfolio', 'devices', 'support', 'work', 'customers', 'fleet', 'data', 'team'],
-  editor: ['portfolio', 'devices', 'support', 'work', 'customers', 'fleet', 'data', 'team'],
-  staff: ['mine', 'devices', 'support', 'work', 'fleet', 'team'],
+  admin: ['portfolio', 'devices', 'support', 'customers', 'fleet', 'data', 'team'],
+  editor: ['portfolio', 'devices', 'support', 'customers', 'fleet', 'data', 'team'],
+  staff: ['mine', 'devices', 'support', 'fleet', 'team'],
   customer: ['fleet', 'support', 'team']
 };
 var HOME = { admin: 'portfolio', editor: 'devices', staff: 'mine', customer: 'fleet' };
@@ -657,14 +653,13 @@ function vMine(){
   var mine = myTickets();
   var claim = S.tickets.filter(function(t){ return isOpen(t) && !t.assignee; }).sort(function(a, b){ return PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority); });
   var first = (MYNAME || '').split(' ')[0];
-  var wos = S.actions.filter(function(a){ return a.kind === 'work_order' && a.status !== 'done' && (a.createdBy === S.uid || (first && a.assignee && a.assignee.toLowerCase().indexOf(first.toLowerCase()) >= 0)); });
   var overdue = mine.filter(function(t){ return slaOf(t).state === 'overdue'; }).length;
   var hour = new Date().getHours(), greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   var h = '<header class="head"><div><span class="eyebrow">' + esc(new Date().toLocaleDateString('en-US', {weekday:'long', month:'short', day:'numeric'})) + '</span>'
     + '<h1>' + greet + (first ? ', ' + esc(first) : '') + '</h1>'
     + '<p class="lede">' + (mine.length ? 'You have ' + mine.length + ' open ticket' + (mine.length === 1 ? '' : 's') + (overdue ? ', ' + overdue + ' past its deadline' : '') + '.' : 'No tickets assigned to you right now.') + (claim.length ? ' ' + claim.length + ' unassigned ' + (claim.length === 1 ? 'needs' : 'need') + ' an owner.' : '') + '</p></div>'
     + '<button type="button" class="btn primary" data-act="new-ticket">New ticket</button></header>';
-  h += '<section class="kpis">' + kpi('Assigned to you', mine.length, 'Open tickets', false) + kpi('Past deadline', overdue, 'Of yours', overdue > 0) + kpi('Unassigned', claim.length, 'Waiting for an owner', claim.length > 0) + kpi('Your work orders', wos.length, 'Open', false) + '</section>';
+  h += '<section class="kpis">' + kpi('Assigned to you', mine.length, 'Open tickets', false) + kpi('Past deadline', overdue, 'Of yours', overdue > 0) + kpi('Unassigned', claim.length, 'Waiting for an owner', claim.length > 0) + '</section>';
   function rows(list, withClaim){
     return '<div class="tbl-wrap"><table><thead><tr><th class="num">#</th><th>Subject</th><th>Priority</th><th>Status</th><th>Deadline</th>' + (withClaim ? '<th></th>' : '') + '</tr></thead><tbody>'
       + list.map(function(t){ return '<tr class="click" data-act="open-ticket" data-id="' + esc(t._id) + '" tabindex="0"><td class="num">' + t.number + '</td><td style="min-width:220px"><strong>' + esc(t.subject) + '</strong><div class="sub">' + esc(custName(t.customerId)) + '</div></td><td>' + prioChip(t.priority) + '</td><td>' + statusChip(t.status) + '</td><td>' + slaChip(t) + '</td>'
@@ -672,7 +667,6 @@ function vMine(){
   }
   h += '<section class="panel"><div class="panel-h"><h2>Your tickets</h2><a href="#support">All tickets</a></div>' + (mine.length ? rows(mine, false) : '<div class="empty">Nothing assigned to you. Pick one up below.</div>') + '</section>';
   if (claim.length) h += '<section class="panel"><div class="panel-h"><h2>Needs an owner</h2></div>' + rows(claim.slice(0, 8), true) + '</section>';
-  h += '<section class="panel"><div class="panel-h"><h2>Your work orders</h2><a href="#work">All work orders</a></div>' + (wos.length ? '<div class="panel-b">' + wos.map(actionLine).join('') + '</div>' : '<div class="empty">No open work orders of yours.</div>') + '</section>';
   return h;
 }
 
@@ -730,14 +724,13 @@ function render(){
   var openT = S.tickets.filter(isOpen);
   $('nDev').textContent = silentN || '';
   $('nSup').textContent = openT.length || '';
-  $('nWork').textContent = S.actions.filter(function(a){ return a.kind === 'work_order' && a.status !== 'done'; }).length || '';
   if ($('nMine')) $('nMine').textContent = ROLE === 'staff' ? (myTickets().length || '') : '';
   $('railSub').textContent = ROLE === 'customer' ? custName(MYCID) : 'Demo · ' + S.customers.length + ' customer' + (S.customers.length === 1 ? '' : 's');
   $('railFoot').innerHTML = '<span>Device data as of ' + esc(dateTimeLabel(A.asOf)) + '</span><span>' + (S.meta && S.meta.source === 'example' ? 'Example dataset' : S.meta && S.meta.source === 'mygeotab' ? 'Live from MyGeotab' : 'Imported data') + '</span>';
   var html = '';
   if (S.meta && S.meta.source === 'example' && route !== 'data') html += '<div class="banner"><span>You’re looking at an example dataset of fictional companies.</span><a class="btn sm" href="#data">Connect MyGeotab</a></div>';
   if (!S.devices.length && route !== 'data' && route !== 'support') html += emptyAll();
-  else html += ({portfolio:vPortfolio, devices:vDevices, support:(ROLE === 'customer' ? vCustSupport : vSupport), mine:vMine, work:vWork, customers:vCustomers, fleet:vFleet, data:vData}[route] || vPortfolio)();
+  else html += ({portfolio:vPortfolio, devices:vDevices, support:(ROLE === 'customer' ? vCustSupport : vSupport), mine:vMine, customers:vCustomers, fleet:vFleet, data:vData}[route] || vPortfolio)();
 
   /* Keep what someone is typing when a live update re-renders the view. */
   var keep = {}, focusId = document.activeElement && v.contains(document.activeElement) ? document.activeElement.id : '';
@@ -858,7 +851,7 @@ function vDevices(){
   h += '<div class="split"><section class="panel main" aria-labelledby="dth"><div class="panel-h"><h2 id="dth">' + (S.dev.cause ? esc(E.CAUSES[S.dev.cause].label) : 'All silent devices') + '</h2><div class="row"><button type="button" class="btn" data-act="dev-export">Export CSV</button></div></div><div id="devTable">' + devTable() + '</div></section>';
   h += '<aside class="panel side" aria-label="Device detail" id="devDetail">' + devDetail() + '</aside></div>';
   var n = Object.keys(S.dev.sel).length;
-  if (n) h += '<div class="bar" role="region" aria-label="Selection"><span>' + n + ' selected</span><div class="row"><button type="button" class="btn sm" data-act="bulk-ticket">Open ticket</button><button type="button" class="btn sm" data-act="bulk-wo">Create work order</button><button type="button" class="btn sm" data-act="bulk-seasonal">Mark parked / seasonal</button><button type="button" class="btn sm" data-act="bulk-clear">Clear</button></div></div>';
+  if (n) h += '<div class="bar" role="region" aria-label="Selection"><span>' + n + ' selected</span><div class="row"><button type="button" class="btn sm" data-act="bulk-ticket">Open ticket</button><button type="button" class="btn sm" data-act="bulk-seasonal">Mark parked / seasonal</button><button type="button" class="btn sm" data-act="bulk-clear">Clear</button></div></div>';
   return h;
 }
 function devTable(){
@@ -878,7 +871,6 @@ function devDetail(){
   var d = S.dev.open && deviceBySerial(S.dev.open);
   if (!d) return '<div class="empty"><h2>Pick a device</h2><span>Select a row to see what happened before it went quiet and what to do next.</span></div>';
   var c = A.cls[d.serial], flag = S.flags[d.serial];
-  var acts = S.actions.filter(function(a){ return (a.serials || []).indexOf(d.serial) >= 0; });
   var tks = openTicketsForSerial(d.serial);
   var h = '<div class="panel-b"><div><span class="eyebrow">' + esc(custName(d.customerId)) + ' · ' + esc(d.serial) + '</span><h2 style="font-size:20px">' + esc(d.vehicle) + cngTag(d) + '</h2></div>'
     + '<div class="row"><span class="chip ' + toneOf(c.cause) + '">' + esc(c.cause ? E.CAUSES[c.cause].label : 'Reporting') + '</span>' + (c.batch ? '<span class="chip t-crit">' + c.batchSize + ' units together</span>' : '') + (flag && flag.seasonal ? '<span class="chip t-muted">Marked parked</span>' : '') + '</div>'
@@ -888,24 +880,9 @@ function devDetail(){
     + (d.isCng && d.disconnects14 != null ? '<dt>Battery disconnects</dt><dd>' + d.disconnects14 + ' in the last 14 days' + (d.routine ? ' (switched off most nights)' : '') + '</dd>' : '') + '</dl>'
     + (d.isCng ? '<div class="note cng-note"><strong>CNG vehicle: may have a battery disconnect</strong><span>CNG vehicles often have a master battery switch. When a driver turns it off, the tracker loses power and goes silent until the switch is back on, so silence while parked can be normal.</span></div>' : '')
     + '<div class="note"><strong>Suggested next step</strong><span>' + esc(E.nextStep(c)) + '</span></div>';
-  if (S.dev.form && S.dev.form.serials.indexOf(d.serial) >= 0) h += woForm();
-  else h += '<div class="row"><button type="button" class="btn primary" data-act="ticket-dev">Open ticket</button><button type="button" class="btn" data-act="wo-one">Create work order</button><button type="button" class="btn" data-act="toggle-seasonal">' + (flag && flag.seasonal ? 'Unmark parked' : 'Mark parked') + '</button></div>';
+  h += '<div class="row"><button type="button" class="btn primary" data-act="ticket-dev">Open ticket</button><button type="button" class="btn" data-act="toggle-seasonal">' + (flag && flag.seasonal ? 'Unmark parked' : 'Mark parked') + '</button></div>';
   if (tks.length) h += '<div style="display:flex; flex-direction:column; gap:8px"><h3>Tickets</h3>' + tks.map(function(t){ return '<button type="button" class="btn" style="justify-content:space-between; width:100%" data-act="open-ticket" data-id="' + esc(t._id) + '"><span>#' + t.number + ' ' + esc(t.subject) + '</span>' + statusChip(t.status) + '</button>'; }).join('') + '</div>';
-  if (acts.length) h += '<div style="display:flex; flex-direction:column; gap:8px"><h3>Work orders</h3>' + acts.map(actionLine).join('') + '</div>';
   return h + '</div>';
-}
-function woForm(){
-  var f = S.dev.form;
-  return '<form class="panel-b" id="woForm" style="padding:0" novalidate><h3>Work order for ' + f.serials.length + ' device' + (f.serials.length === 1 ? '' : 's') + (f.ticketId ? ' · from ticket #' + esc((ticketById(f.ticketId) || {}).number) : '') + '</h3>'
-    + '<div class="field"><label for="woType">Type</label><select class="input" id="woType">' + WO_TYPES.map(function(t){ return '<option' + (f.type === t ? ' selected' : '') + '>' + t + '</option>'; }).join('') + '</select></div>'
-    + '<div class="field"><label for="woAssignee">Assigned to</label><input class="input" id="woAssignee" autocomplete="off" placeholder="Installer, tech or teammate"></div>'
-    + '<div class="field"><label for="woDue">Due</label><input class="input" id="woDue" type="date"></div>'
-    + '<div class="field"><label for="woNote">Notes</label><textarea class="input" id="woNote">' + esc(f.note || '') + '</textarea></div>'
-    + '<div class="row"><button type="submit" class="btn primary">Create work order</button><button type="button" class="btn" data-act="wo-cancel">Cancel</button></div></form>';
-}
-function actionLine(a){
-  var when = a.createdAt ? dateTimeLabel(E.time(a.createdAt)) : '';
-  return '<div class="note"><span class="row" style="justify-content:space-between"><strong>' + esc(a.type || 'Work order') + (a.status === 'done' ? ' · done' : ' · open') + '</strong><span class="sub">' + esc(when) + '</span></span>' + (a.text ? '<span>' + esc(a.text) + '</span>' : '') + '<span class="sub">By ' + who(a.createdBy) + (a.assignee ? ' · assigned to ' + esc(a.assignee) : '') + '</span></div>';
 }
 
 /* Support */
@@ -966,7 +943,6 @@ function eventText(m){
     case 'category': return who(m.by) + ' set category to ' + esc(m.value);
     case 'customer': return who(m.by) + ' moved this ticket to ' + esc(custName(m.value));
     case 'assigned': return m.value ? who(m.by) + ' assigned this to ' + who(m.value) : who(m.by) + ' unassigned this ticket';
-    case 'workorder': return who(m.by) + ' created a work order: ' + esc(m.value);
     default: return esc(m.text || 'Updated');
   }
 }
@@ -1000,7 +976,7 @@ function vTicket(t){
     + '<dt>First response</dt><dd>' + (t.firstResponseAt ? esc(dateTimeLabel(E.time(t.firstResponseAt))) : (s.what === 'First response' ? 'Due ' + esc(dateTimeLabel(s.due)) : '–')) + '</dd>' + (t.resolvedAt ? '<dt>Resolved</dt><dd>' + esc(dateTimeLabel(E.time(t.resolvedAt))) + '</dd>' : '') + '</dl>';
   if (t.serials && t.serials.length) {
     h += '<div style="display:flex; flex-direction:column; gap:6px"><h3>Vehicles</h3><div class="row">' + t.serials.slice(0, 30).map(function(sr, i){ var d = deviceBySerial(sr); return '<button type="button" class="btn sm" data-act="open-dev" data-id="' + esc(sr) + '">' + esc(d ? d.vehicle : (t.vehicles || [])[i] || sr) + '</button>'; }).join('') + (t.serials.length > 30 ? '<span class="sub">+' + (t.serials.length - 30) + ' more</span>' : '') + '</div>'
-      + '<button type="button" class="btn" data-act="wo-from-ticket">Create work order for these vehicles</button></div>';
+      + '</div>';
   }
   h += '</div></aside></div>';
   return h;
@@ -1027,20 +1003,6 @@ function assignResults(list){
   box.querySelectorAll('.pname').forEach(function(el, i){ el.textContent = list[i].name || 'Someone'; });
 }
 
-/* Work orders */
-function vWork(){
-  var list = S.actions.filter(function(a){ return a.kind === 'work_order' && (S.work.status === 'all' || (S.work.status === 'done' ? a.status === 'done' : a.status !== 'done')); });
-  var h = '<header class="head"><div><span class="eyebrow">Work orders</span><h1>Installer visits and calls</h1><p class="lede">Created from Device health or a support ticket. Everyone on your team sees the same list, live.</p></div>'
-    + '<div class="row"><div class="seg" role="group" aria-label="Status">' + [['open','Open'],['done','Done'],['all','All']].map(function(s){ return '<button type="button" data-act="wf" data-v="' + s[0] + '" aria-pressed="' + (S.work.status === s[0]) + '">' + s[1] + '</button>'; }).join('') + '</div><button type="button" class="btn" data-act="exp-wo">Export CSV</button></div></header>';
-  h += '<section class="panel">' + (list.length ? '<div class="tbl-wrap"><table><thead><tr><th>Type</th><th>Customer</th><th>Vehicles</th><th>Ticket</th><th>Assigned</th><th>Due</th><th>Created</th><th><span class="sr">Status</span></th></tr></thead><tbody>'
-    + list.map(function(a){
-      var veh = (a.vehicles || a.serials || []), tk = a.ticketId && ticketById(a.ticketId);
-      return '<tr' + (a.status === 'done' ? ' class="done"' : '') + '><td><strong>' + esc(a.type || 'Work order') + '</strong>' + (a.text ? '<div class="sub">' + esc(a.text) + '</div>' : '') + '</td><td>' + esc(custName(a.customerId)) + '</td><td>' + esc(veh.slice(0, 4).join(', ')) + (veh.length > 4 ? ' +' + (veh.length - 4) : '') + '</td>'
-        + '<td>' + (tk ? '<button type="button" class="btn sm" data-act="open-ticket" data-id="' + esc(tk._id) + '">#' + tk.number + '</button>' : '–') + '</td><td>' + esc(a.assignee || '–') + '</td><td class="mono">' + esc(a.due || '–') + '</td><td class="sub">' + who(a.createdBy) + '<br>' + esc(dateLabel(E.time(a.createdAt))) + '</td>'
-        + '<td style="text-align:right"><button type="button" class="btn sm' + (a.status === 'done' ? '' : ' primary') + '" data-act="wo-toggle" data-id="' + esc(a._id) + '">' + (a.status === 'done' ? 'Reopen' : 'Mark done') + '</button></td></tr>';
-    }).join('') + '</tbody></table></div>' : '<div class="empty"><span>No ' + (S.work.status === 'all' ? '' : S.work.status + ' ') + 'work orders.</span><a class="btn" href="#devices">Go to Device health</a></div>') + '</section>';
-  return h;
-}
 
 /* Customers */
 function vCustomers(){
@@ -1117,7 +1079,7 @@ function vData(){
   h += '<section class="panel"><div class="panel-h"><h2>Import customers</h2><button type="button" class="btn" data-act="tpl-cust">Download template</button></div><div class="panel-b"><p class="sub" style="margin:0">Optional. Adds last admin login and renewal dates for churn risk. Columns: name, database, lastAdminLoginAt, renewalAt.</p>' + (S.canEdit ? '<div class="row"><label class="btn" for="custFile">Choose customer CSV</label><input id="custFile" type="file" accept=".csv,text/csv" class="sr"></div>' : '') + '</div></section>';
   var exCust = S.customers.filter(function(c){ return c.example; }).length, exTk = S.tickets.filter(function(t){ return t.example; }).length;
   if (S.canEdit && (exCust || exTk)) {
-    h += '<section class="panel"><div class="panel-h"><h2>Example data</h2></div><div class="panel-b"><p class="sub" style="margin:0">Removes the fictional customers, their devices and the example tickets. Your imported data, your own tickets and work orders stay.</p>'
+    h += '<section class="panel"><div class="panel-h"><h2>Example data</h2></div><div class="panel-b"><p class="sub" style="margin:0">Removes the fictional customers, their devices and the example tickets. Your imported data and your own tickets stay.</p>'
       + (S.confirmRemove ? '<div class="row"><span>Remove ' + exCust + ' example customers and ' + exTk + ' example tickets?</span><button type="button" class="btn primary" data-act="rm-example-yes">Remove</button><button type="button" class="btn" data-act="rm-example-no">Keep</button></div>' : '<div class="row"><button type="button" class="btn" data-act="rm-example">Remove example data</button></div>') + '</div></section>';
   }
   return h;
@@ -1137,7 +1099,6 @@ function importPreview(){
 }
 
 /* ---------- actions ---------- */
-function addAction(o){ o.createdBy = S.uid; o.createdAt = nowIso(); return S.db.collection('actions').add(o); }
 function saveFile(name, text){
   if (!S.dl) { toast('Downloads aren’t available in this view.'); return; }
   S.dl.save({filename:name, data:text}).then(function(){ toast('Saved ' + name); }, function(e){ if (e && e.code !== 'declined') toast('Couldn’t save the file.'); });
@@ -1201,7 +1162,6 @@ function loadDeviceFile(text, name){
   if (!r.devices.length) { toast('No devices found in ' + name + '. It needs serial and customer columns.'); return; }
   S.imp = {filename:name, devices:r.devices, errors:r.errors}; schedule();
 }
-function defaultWoType(serial){ var c = A.cls[serial]; if (!c) return 'Installer visit'; return c.cause === 'unplugged' && c.batch ? 'Call fleet manager' : c.cause === 'unplugged' ? 'Call driver' : c.cause === 'seasonal' ? 'Call fleet manager' : 'Installer visit'; }
 function removeExample(){
   var ex = {}; S.customers.forEach(function(c){ if (c.example) ex[c.id] = 1; });
   var ops = Object.keys(ex).map(function(c){ return S.db.doc('customers/' + c).delete(); });
@@ -1222,11 +1182,8 @@ document.addEventListener('click', function(ev){
     case 'qf': S.qFilter = v; schedule(); break;
     case 'open-item': openItem(id); break;
     case 'open-cust': S.cust.open = id; S.search = ''; if (location.hash !== '#customers') location.hash = '#customers'; else schedule(); break;
-    case 'open-dev': S.dev.open = id; S.dev.form = null; S.search = ''; if (A.cls[id] && !A.cls[id].silent) S.dev.cause = ''; if (location.hash !== '#devices') location.hash = '#devices'; else schedule(); break;
+    case 'open-dev': S.dev.open = id; S.search = ''; if (A.cls[id] && !A.cls[id].silent) S.dev.cause = ''; if (location.hash !== '#devices') location.hash = '#devices'; else schedule(); break;
     case 'cause': S.dev.cause = S.dev.cause === v ? '' : v; S.dev.sel = {}; schedule(); break;
-    case 'wo-one': S.dev.form = {serials:[S.dev.open], type:defaultWoType(S.dev.open)}; schedule(); break;
-    case 'wo-cancel': S.dev.form = null; schedule(); break;
-    case 'bulk-wo': var ss = Object.keys(S.dev.sel); S.dev.open = ss[0]; S.dev.form = {serials:ss, type:defaultWoType(ss[0])}; schedule(); break;
     case 'bulk-ticket': startNewTicket(devicePrefill(Object.keys(S.dev.sel))); S.dev.sel = {}; break;
     case 'ticket-dev': startNewTicket(devicePrefill([S.dev.open])); break;
     case 'bulk-seasonal': setSeasonal(Object.keys(S.dev.sel), true).then(function(){ S.dev.sel = {}; schedule(); }); break;
@@ -1245,15 +1202,7 @@ document.addEventListener('click', function(ev){
       var t = ticketById(S.sup.open); if (!t) break;
       var target = id || null;
       write(updateTicket(t._id, {assignee:target}, {event:'assigned', value:target}), target ? 'Assigned' : 'Unassigned'); break;
-    case 'wo-from-ticket':
-      var tt = ticketById(S.sup.open); if (!tt || !tt.serials || !tt.serials.length) break;
-      S.dev.customerId = tt.customerId; S.dev.cause = ''; S.dev.open = tt.serials[0];
-      S.dev.form = {serials:tt.serials.slice(), type:defaultWoType(tt.serials[0]), ticketId:tt._id, note:'Ticket #' + tt.number + ': ' + tt.subject};
-      S._keepForm = true; location.hash = '#devices'; break;
     case 'exp-tickets': saveFile('tickets.csv', E.toCSV(filteredTickets().map(function(t){ var s = slaOf(t); return {number:t.number, subject:t.subject, customer:custName(t.customerId), category:t.category, priority:t.priority, status:STATUS[t.status], contact:t.contact, vehicles:t.vehicles || [], createdAt:t.createdAt, firstResponseAt:t.firstResponseAt || '', resolvedAt:t.resolvedAt || '', deadline:s.label}; }), ['number','subject','customer','category','priority','status','contact','vehicles','createdAt','firstResponseAt','resolvedAt','deadline'])); break;
-    case 'exp-wo': saveFile('work-orders.csv', E.toCSV(S.actions.filter(function(a){ return a.kind === 'work_order'; }).map(function(a){ var tk = a.ticketId && ticketById(a.ticketId); return {created:a.createdAt, customer:custName(a.customerId), type:a.type, vehicles:a.vehicles || [], serials:a.serials || [], ticket:tk ? tk.number : '', assignee:a.assignee, due:a.due, status:a.status, notes:a.text}; }), ['created','customer','type','vehicles','serials','ticket','assignee','due','status','notes'])); break;
-    case 'wf': S.work.status = v; schedule(); break;
-    case 'wo-toggle': var a = S.actions.filter(function(x){ return x._id === id; })[0]; if (a) write(S.db.doc('actions/' + id).update({status: a.status === 'done' ? 'open' : 'done', doneAt: a.status === 'done' ? null : nowIso()}), a.status === 'done' ? 'Reopened' : 'Marked done'); break;
     case 'brief': S.fleet.customerId = id; break;
     case 'reply':
       var k = el.getAttribute('data-k'), cid = el.getAttribute('data-cid');
@@ -1311,15 +1260,7 @@ document.addEventListener('keydown', function(ev){
 document.addEventListener('submit', function(ev){
   ev.preventDefault();
   var f = ev.target;
-  if (f.id === 'woForm') {
-    var form = S.dev.form; if (!form) return;
-    var vehicles = form.serials.map(function(s){ var d = deviceBySerial(s); return d ? d.vehicle : s; });
-    var d0 = deviceBySerial(form.serials[0]), type = $('woType').value;
-    var rec = {kind:'work_order', status:'open', type:type, assignee:$('woAssignee').value.trim(), due:$('woDue').value, text:$('woNote').value.trim(), serials:form.serials, vehicles:vehicles, customerId:d0 ? d0.customerId : '', cause:A.cls[form.serials[0]] ? A.cls[form.serials[0]].cause : ''};
-    if (form.ticketId) rec.ticketId = form.ticketId;
-    var p = addAction(rec).then(function(){ if (form.ticketId) return updateTicket(form.ticketId, {}, {event:'workorder', value:type + ' for ' + vehicles.length + ' vehicle' + (vehicles.length === 1 ? '' : 's')}); });
-    write(p, 'Work order created').then(function(ok){ if (ok) { S.dev.form = null; S.dev.sel = {}; schedule(); } });
-  } else if (f.id === 'custMsgForm') {
+  if (f.id === 'custMsgForm') {
     var ct = ticketById(S.sup.open), cb = $('custMsg').value.trim(); if (!ct || !cb) { toast('Write a message first.'); return; }
     write(S.db.collection('tickets/' + ct._id + '/messages').add({kind:'request', body:cb, from:MYNAME, by:S.uid, at:nowIso()}), 'Sent to your reseller').then(function(ok){ if (ok) $('custMsg').value = ''; });
   } else if (f.id === 'custNewForm') {
@@ -1374,8 +1315,6 @@ document.addEventListener('submit', function(ev){
   });
 });
 window.addEventListener('hashchange', function(){
-  if (!S._keepForm) S.dev.form = null;
-  S._keepForm = false;
   if (location.hash !== '#support' && S.sup.unsub) { S.sup.unsub(); S.sup.unsub = null; S.sup.open = null; }
   if (location.hash !== '#support') S.sup.creating = null;
   window.scrollTo(0, 0); schedule();

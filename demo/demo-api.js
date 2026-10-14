@@ -4,7 +4,7 @@
    Nothing is sent anywhere. */
 (function () {
   'use strict';
-  var KEY = 'pitwall-demo-v3', H = 3600e3, D = 24 * H;
+  var KEY = 'pitwall-demo-v4', H = 3600e3, D = 24 * H;
   var realFetch = window.fetch.bind(window);
   var bc = 'BroadcastChannel' in window ? new BroadcastChannel('pitwall-demo') : null;
   var state = null, streams = [];
@@ -13,7 +13,7 @@
   function iso(ms) { return new Date(ms).toISOString(); }
   function load() {
     try { state = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { state = null; }
-    if (!state || !state.docs || state.v !== 3) { state = seed(); save(); }
+    if (!state || !state.docs || state.v !== 4) { state = seed(); save(); }
     rebase();
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* storage full or blocked: keep working in memory */ } }
@@ -132,10 +132,7 @@
       msgs.forEach(function (m, i) { put('tickets/' + tk.id + '/messages/m' + (i + 1), { kind: m.kind, from: m.from || '', body: m.body, by: m.by || 'u_demo_admin', at: iso(m.at) }); });
     });
     put('counters/tickets', { next: 1005 });
-    put('actions/a1', { kind: 'work_order', status: 'open', type: 'Call fleet manager', assignee: 'Alex', due: iso(t + D).slice(0, 10), text: 'Confirm the five vans were at the body shop.', serials: dev('coastal-plumbing', [3, 7, 11, 15, 19]), vehicles: veh('coastal-plumbing', [3, 7, 11, 15, 19]), customerId: 'coastal-plumbing', cause: 'unplugged', ticketId: 't1001', createdBy: 'u_demo_admin', createdAt: iso(t - 18 * H) });
-    put('actions/a2', { kind: 'work_order', status: 'open', type: 'Installer visit', assignee: 'Metro Installs', due: iso(t + 3 * D).slice(0, 10), text: 'Check harness on Box Truck 414.', serials: dev('bayline-movers', [13]), vehicles: veh('bayline-movers', [13]), customerId: 'bayline-movers', cause: 'voltage', createdBy: 'u_demo_editor', createdAt: iso(t - 30 * H) });
-    put('actions/a3', { kind: 'work_order', status: 'done', type: 'Installer visit', assignee: 'Metro Installs', due: iso(t - 6 * D).slice(0, 10), text: 'New box truck install.', serials: [], vehicles: [], customerId: 'bayline-movers', ticketId: 't1004', createdBy: 'u_demo_editor', createdAt: iso(t - 9 * D), doneAt: iso(t - 6 * D) });
-    return { v: 3, docs: docs, users: users, syncedAt: t, backups: [iso(t - 2 * H).slice(0, 10)] };
+    return { v: 4, docs: docs, users: users, syncedAt: t, backups: [iso(t - 2 * H).slice(0, 10)] };
   }
 
   /* ---------- the pretend server ---------- */
