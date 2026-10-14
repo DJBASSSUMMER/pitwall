@@ -33,3 +33,4 @@ th,td{text-align:left;padding:10px 14px;border-top:1px solid var(--line)} th{fon
 .demo-btns .btn span{font-weight:400;font-size:12px;color:var(--muted);line-height:1.3}
 @media (max-width:440px){.demo-btns{grid-template-columns:1fr}}
 code{font-family:ui-monospace,Menlo,monospace;font-size:13px}
+.brand .ver{font-size:11px;font-weight:600;color:var(--accent);border:1px solid var(--line);border-radius:999px;padding:1px 8px;white-space:nowrap}
