@@ -1,0 +1,1375 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Pitwall</title>
+<script src="/pitwall/wp-shim.js"></script>
+<script src="/pitwall/claude-shim.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: dark rail of destinations + a work surface; tables over cards, chips carry state. */
+:root{
+  --bg:#F3F4F1; --surface:#FFFFFF; --surface-2:#F8F9F6; --ink:#16191D; --ink-2:#33383F; --muted:#59606A;
+  --line:#DDE0DA; --line-2:#EEF0EB; --accent:#C2410C; --accent-ink:#FFFFFF; --focus:#1F4E8C;
+  --nav:#16191D; --nav-ink:#E9EBE6; --nav-muted:#9AA1A9; --nav-active:#2A2F35; --nav-badge:#FDBA74;
+  --crit-bg:#FDE7DC; --crit:#9A3412; --warn-bg:#FEF3C7; --warn:#854D0E; --info-bg:#E0EAF7; --info:#1F4E8C;
+  --purple-bg:#EDE4F7; --purple:#5B2F8C; --muted-bg:#E7E9E4; --muted-fg:#3F454C; --ok-bg:#E3EFE6; --ok:#2F5E3A; --cng-bg:#D7F0EC; --cng:#0E5A52;
+  --sans:'IBM Plex Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono:'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0F1113; --surface:#171A1D; --surface-2:#1D2125; --ink:#ECEEEA; --ink-2:#CDD1D6; --muted:#A3AAB2;
+  --line:#2C3136; --line-2:#23272B; --accent:#F97316; --accent-ink:#16191D; --focus:#9CC3F5;
+  --nav:#0A0B0D; --nav-ink:#E9EBE6; --nav-muted:#9AA1A9; --nav-active:#22262B; --nav-badge:#FDBA74;
+  --crit-bg:#3A1E12; --crit:#FDBA8C; --warn-bg:#3A2E0E; --warn:#FCD34D; --info-bg:#142338; --info:#9CC3F5;
+  --purple-bg:#2A1D3A; --purple:#D3B8F5; --muted-bg:#262A2F; --muted-fg:#C3C8CE; --ok-bg:#16301E; --ok:#9AD7A8; --cng-bg:#0F2D2A; --cng:#8ED8CC;
+  color-scheme:dark; } }
+:root[data-theme="dark"]{
+  --bg:#0F1113; --surface:#171A1D; --surface-2:#1D2125; --ink:#ECEEEA; --ink-2:#CDD1D6; --muted:#A3AAB2;
+  --line:#2C3136; --line-2:#23272B; --accent:#F97316; --accent-ink:#16191D; --focus:#9CC3F5;
+  --nav:#0A0B0D; --nav-ink:#E9EBE6; --nav-muted:#9AA1A9; --nav-active:#22262B; --nav-badge:#FDBA74;
+  --crit-bg:#3A1E12; --crit:#FDBA8C; --warn-bg:#3A2E0E; --warn:#FCD34D; --info-bg:#142338; --info:#9CC3F5;
+  --purple-bg:#2A1D3A; --purple:#D3B8F5; --muted-bg:#262A2F; --muted-fg:#C3C8CE; --ok-bg:#16301E; --ok:#9AD7A8; --cng-bg:#0F2D2A; --cng:#8ED8CC;
+  color-scheme:dark; }
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{background:var(--bg); color:var(--ink); font-family:var(--sans); font-size:15px; line-height:1.45}
+button,input,select,textarea{font:inherit; color:inherit}
+:focus-visible{outline:2px solid var(--focus); outline-offset:2px}
+a{color:var(--info)}
+.app{display:flex; flex-wrap:wrap; min-height:100vh}
+.rail{flex:1 1 224px; max-width:100%; background:var(--nav); color:var(--nav-ink); padding:24px 16px; display:flex; flex-direction:column; gap:24px}
+.brand{display:flex; flex-direction:column; gap:2px; padding:0 8px}
+.brand b{display:flex; align-items:center; gap:10px; font-size:20px; letter-spacing:-0.01em}
+.brand span{font-size:12px; color:var(--nav-muted)}
+.brand b .ver{font-size:11px; font-weight:600; color:var(--nav-badge); border:1px solid var(--nav-active); border-radius:999px; padding:1px 8px; letter-spacing:0; white-space:nowrap}
+.nav{display:flex; flex-direction:column; gap:2px}
+.nav a{display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:44px; padding:0 12px; border-radius:8px; color:#C9CDD2; text-decoration:none}
+.nav a[aria-current="page"]{background:var(--nav-active); color:#FFFFFF; font-weight:600}
+.nav a:hover{background:var(--nav-active)}
+.nav .n{font-family:var(--mono); font-size:12px; color:var(--nav-badge); font-variant-numeric:tabular-nums}
+.rail-foot{margin-top:auto; font-size:12px; color:var(--nav-muted); border-top:1px solid var(--nav-active); padding:14px 8px 0; display:flex; flex-direction:column; gap:4px}
+main{flex:999 1 560px; min-width:0; padding-block:28px 56px; padding-inline:clamp(16px, 3vw, 40px); display:flex; flex-direction:column; gap:24px}
+@media (max-width:860px){
+  .rail{flex-basis:100%; padding:14px 16px; gap:12px}
+  .nav{flex-direction:row; overflow-x:auto; gap:4px}
+  .nav a{white-space:nowrap}
+  .rail-foot{display:none}
+}
+.eyebrow{font-family:var(--mono); font-size:12px; letter-spacing:0.06em; color:var(--muted); text-transform:uppercase}
+h1{margin:0; font-size:clamp(26px, 3.2vw, 34px); line-height:1.15; letter-spacing:-0.02em; text-wrap:balance}
+h2{margin:0; font-size:18px; font-weight:600}
+h3{margin:0; font-size:15px; font-weight:600}
+.lede{margin:0; color:var(--muted); max-width:68ch}
+.head{display:flex; flex-wrap:wrap; justify-content:space-between; align-items:flex-end; gap:16px}
+.head > div{display:flex; flex-direction:column; gap:6px; min-width:0}
+.row{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+.split{display:flex; flex-wrap:wrap; gap:24px; align-items:flex-start}
+.split > .main{flex:3 1 560px; min-width:0}
+.split > .side{flex:2 1 320px; min-width:0}
+.panel{background:var(--surface); border:1px solid var(--line); border-radius:14px; min-width:0}
+.panel-h{display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; padding:16px 20px; border-bottom:1px solid var(--line-2)}
+.panel-b{padding:16px 20px; display:flex; flex-direction:column; gap:14px}
+.kpis{display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:12px}
+.kpi{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:16px 18px; display:flex; flex-direction:column; gap:4px}
+.kpi .l{font-size:13px; color:var(--muted)}
+.kpi .v{font-family:var(--mono); font-size:28px; font-weight:600; font-variant-numeric:tabular-nums}
+.kpi .v.bad{color:var(--crit)}
+.kpi .s{font-size:12px; color:var(--muted)}
+.btn{display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:44px; padding:0 14px; border-radius:9px; border:1px solid var(--line); background:var(--surface); color:var(--ink); font-weight:600; font-size:14px; cursor:pointer; text-decoration:none; white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-ink)}
+.btn.dark{background:var(--ink); border-color:var(--ink); color:var(--bg)}
+.btn.ghost{background:transparent; border-color:transparent; color:var(--info)}
+.btn[disabled]{opacity:0.5; cursor:not-allowed}
+.btn.sm{min-height:36px; padding:0 10px; font-size:13px}
+.chip{display:inline-flex; align-items:center; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:600; white-space:nowrap}
+.t-crit{background:var(--crit-bg); color:var(--crit)} .t-warn{background:var(--warn-bg); color:var(--warn)}
+.t-info{background:var(--info-bg); color:var(--info)} .t-purple{background:var(--purple-bg); color:var(--purple)}
+.t-muted{background:var(--muted-bg); color:var(--muted-fg)} .t-ok{background:var(--ok-bg); color:var(--ok)}
+.t-cng{background:var(--cng-bg); color:var(--cng)} .cng-tag{margin-left:6px; padding:1px 7px; font-size:11px; vertical-align:2px}
+.note.cng-note{background:var(--cng-bg); color:var(--ink-2); border-left:4px solid var(--cng)} .note.cng-note strong{color:var(--cng)}
+.seg{display:flex; flex-wrap:wrap; gap:6px}
+.seg button{min-height:40px; padding:0 14px; border-radius:999px; border:1px solid var(--line); background:var(--surface); font-size:13px; font-weight:600; cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink); border-color:var(--ink); color:var(--bg)}
+.q{list-style:none; margin:0; padding:0}
+.q li{display:flex; flex-wrap:wrap; gap:14px; align-items:center; padding:16px 20px; border-top:1px solid var(--line-2)}
+.q li:first-child{border-top:0}
+.q .sev{min-width:80px; justify-content:center}
+.q .body{flex:1 1 280px; min-width:0; display:flex; flex-direction:column; gap:2px}
+.q .kind{font-family:var(--mono); font-size:11px; letter-spacing:0.05em; color:var(--muted); text-transform:uppercase}
+.q .imp{font-family:var(--mono); font-weight:600; min-width:110px; text-align:right; font-variant-numeric:tabular-nums}
+.tbl-wrap{overflow-x:auto}
+table{width:100%; border-collapse:collapse; font-size:14px}
+th{text-align:left; font-size:12px; font-weight:600; color:var(--muted); padding:10px 12px; background:var(--surface-2); white-space:nowrap}
+td{padding:11px 12px; border-top:1px solid var(--line-2); vertical-align:middle}
+th:first-child,td:first-child{padding-left:20px} th:last-child,td:last-child{padding-right:20px}
+td.num,th.num{text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums}
+tr.click{cursor:pointer} tr.click:hover td{background:var(--surface-2)}
+tr.sel td{background:var(--info-bg)}
+tr.done td{opacity:0.5}
+.mono{font-family:var(--mono); font-variant-numeric:tabular-nums}
+.sub{font-size:12px; color:var(--muted)}
+.bad{color:var(--crit); font-weight:600}
+.tiles{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px}
+.tile{display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left; padding:12px 14px; min-height:44px; border-radius:12px; cursor:pointer; border:2px solid transparent}
+.tile[aria-pressed="true"]{border-color:currentColor}
+.tile .c{font-family:var(--mono); font-size:24px; font-weight:600}
+.tile .lb{font-weight:600; font-size:14px}
+.tile .h{font-size:12px; opacity:0.85}
+.field{display:flex; flex-direction:column; gap:4px; min-width:0}
+.field label{font-size:12px; font-weight:600; color:var(--muted)}
+.input, select.input, textarea.input{min-height:44px; padding:8px 12px; border:1px solid var(--line); border-radius:9px; background:var(--surface); width:100%}
+textarea.input{min-height:72px; resize:vertical}
+.facts{display:grid; grid-template-columns:auto 1fr; gap:6px 14px; margin:0; font-size:14px}
+.facts dt{color:var(--muted)} .facts dd{margin:0; min-width:0; overflow-wrap:anywhere}
+.note{background:var(--surface-2); border-radius:10px; padding:12px 14px; font-size:14px; color:var(--ink-2); display:flex; flex-direction:column; gap:4px}
+.onb-list{list-style:none; margin:0; padding:0}
+.onb-list li{display:flex; gap:14px; align-items:center; padding:14px 20px; border-top:1px solid var(--line-2)}
+.onb-list li:first-child{border-top:0}
+.onb-n{flex:0 0 30px; height:30px; border-radius:50%; display:grid; place-items:center; font-weight:700; background:var(--surface-2); color:var(--ink-2)}
+.onb-list li.done .onb-n{background:var(--ok-bg); color:var(--ok)}
+.onb-t{flex:1 1 auto; display:flex; flex-direction:column; gap:2px; min-width:0; overflow-wrap:anywhere}
+.onb{margin-bottom:4px}
+@media (max-width:600px){.onb-list li{flex-wrap:wrap} .onb-list li .btn,.onb-list li .chip{margin-left:44px}}
+.empty{padding:28px 20px; color:var(--muted); display:flex; flex-direction:column; gap:10px; align-items:flex-start}
+.bar{position:sticky; bottom:12px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; background:var(--ink); color:var(--bg); padding:10px 14px; border-radius:12px}
+.bar .btn{border-color:transparent}
+.meter{height:8px; border-radius:999px; background:var(--muted-bg); overflow:hidden}
+.meter > span{display:block; height:100%; background:var(--info)}
+.toast{position:fixed; left:50%; transform:translateX(-50%); bottom:calc(20px + env(safe-area-inset-bottom, 0px)); background:var(--ink); color:var(--bg); padding:12px 16px; border-radius:10px; font-size:14px; max-width:calc(100vw - 32px); z-index:10}
+.drop{border:2px dashed var(--line); border-radius:12px; padding:20px; display:flex; flex-direction:column; gap:10px; align-items:flex-start}
+.drop.over{border-color:var(--info); background:var(--info-bg)}
+.results{list-style:none; margin:0; padding:0; border:1px solid var(--line); border-radius:10px; background:var(--surface); overflow:hidden}
+.results li button{width:100%; display:flex; justify-content:space-between; gap:10px; text-align:left; padding:10px 14px; min-height:44px; border:0; border-top:1px solid var(--line-2); background:transparent; cursor:pointer}
+.results li:first-child button{border-top:0}
+.results li button:hover{background:var(--surface-2)}
+.banner{display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; justify-content:space-between; padding:10px 14px; border-radius:10px; background:var(--warn-bg); color:var(--warn); font-size:14px}
+.sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+@media (prefers-reduced-motion: reduce){ *{transition:none!important; animation:none!important} }
+.thread{display:flex; flex-direction:column; gap:10px}
+.msg{border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:var(--surface); display:flex; flex-direction:column; gap:6px; min-width:0}
+.msg.request{background:var(--surface-2)}
+.msg.note{background:var(--warn-bg); border-color:transparent; color:var(--ink)}
+.msg.event{border:0; padding:2px 4px; background:transparent; color:var(--muted); font-size:13px}
+.msg .meta{display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px; font-size:12px; color:var(--muted)}
+.msg .text{white-space:pre-wrap; overflow-wrap:anywhere}
+details summary{cursor:pointer; font-weight:600; font-size:14px}
+</style>
+
+<div class="app">
+  <nav class="rail" aria-label="Main">
+    <div class="brand">
+      <b><svg width="24" height="24" viewBox="0 0 26 26" fill="none" stroke="#F97316" stroke-width="2" aria-hidden="true"><path d="M3 9h20M3 17h20M9 3v20M17 3v20"/></svg>Pitwall<span class="ver" title="Pitwall Beta v1.1">Beta v1.1</span></b>
+      <span id="railSub">Reseller console</span>
+    </div>
+    <div class="nav" id="nav">
+      <a href="#mine" data-r="mine">My work <span class="n" id="nMine"></span></a>
+      <a href="#portfolio" data-r="portfolio">Portfolio</a>
+      <a href="#devices" data-r="devices">Device health <span class="n" id="nDev"></span></a>
+      <a href="#support" data-r="support">Support <span class="n" id="nSup"></span></a>
+      <a href="#customers" data-r="customers">Customers</a>
+      <a href="#fleet" data-r="fleet">Customer brief</a>
+      <a href="#data" data-r="data">Data</a>
+      <a href="/pitwall/team" data-r="team">Team</a>
+    </div>
+    <div class="rail-foot" id="railFoot"></div>
+  </nav>
+  <main id="view" aria-live="polite">
+    <div class="empty"><h1>Loading saved data…</h1></div>
+  </main>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+/* Pitwall engine: shared by the hosted app and the MyGeotab Add-in.
+   Pure functions only. No DOM, no network. */
+(function (root) {
+  'use strict';
+  var H = 3600e3, D = 24 * H;
+
+  var CAUSES = {
+    unplugged:    { label: 'Likely unplugged',  hint: 'Power removed with ignition off', tone: 'crit' },
+    disconnect:   { label: 'Battery disconnect (CNG)', hint: 'CNG master switch likely turned off', tone: 'cng' },
+    voltage:      { label: 'Wiring / voltage',  hint: 'Low or unstable supply',          tone: 'warn' },
+    gps:          { label: 'No GPS fix',        hint: 'Ignition seen, no location',      tone: 'info' },
+    seasonal:     { label: 'Parked / seasonal', hint: 'Normal shutdown, idle 14+ days',  tone: 'muted' },
+    notinstalled: { label: 'Never installed',   hint: 'Activated, no trips ever',        tone: 'purple' },
+    unknown:      { label: 'Needs a look',      hint: 'No clear signal before silence',  tone: 'muted' }
+  };
+  var CAUSE_ORDER = ['unplugged', 'disconnect', 'voltage', 'gps', 'notinstalled', 'seasonal', 'unknown'];
+
+  var SIGNALS = ['power_removed', 'battery_disconnect', 'low_voltage', 'reboot_loop', 'ignition_no_gps', 'normal_shutdown', 'normal', ''];
+
+  function t(x) { if (x == null || x === '') return null; var v = typeof x === 'number' ? x : Date.parse(x); return isNaN(v) ? null : v; }
+
+  function fmtAgo(ms) {
+    if (ms == null || !isFinite(ms)) return 'never';
+    if (ms < H) return Math.max(1, Math.round(ms / 60e3)) + ' min';
+    if (ms < D) return Math.round(ms / H) + ' h';
+    var d = Math.floor(ms / D), h = Math.round((ms - d * D) / H);
+    return d < 3 && h ? d + ' d ' + h + ' h' : d + ' d';
+  }
+
+  /* d: normalized device. flags: {seasonal:bool}. Returns classification. */
+  function classifyDevice(d, asOf, flags) {
+    flags = flags || {};
+    var last = t(d.lastCommAt), act = t(d.activatedAt), trip = t(d.lastTripAt);
+    var silentMs = last == null ? Infinity : Math.max(0, asOf - last);
+    var r = { serial: d.serial, silent: false, silentMs: silentMs, cause: null, archived: !!d.archived, cng: !!d.isCng };
+    if (d.archived) return r;
+    if (!trip && act != null && asOf - act > 7 * D) {
+      r.silent = true; r.cause = 'notinstalled'; r.silentMs = asOf - act; return r;
+    }
+    if (silentMs < D) return r;
+    r.silent = true;
+    if (flags.seasonal) { r.cause = 'seasonal'; r.flagged = true; return r; }
+    switch (d.lastSignal) {
+      case 'power_removed': r.cause = 'unplugged'; break;
+      /* CNG only: shutdown, then power cut within minutes, healthy battery.
+         "routine" = the switch is turned off most nights, so a short silence is expected. */
+      case 'battery_disconnect': r.cause = 'disconnect'; r.routine = !!d.routine; r.expected = r.routine && silentMs < 3 * D; break;
+      case 'low_voltage': case 'reboot_loop': r.cause = 'voltage'; break;
+      case 'ignition_no_gps': r.cause = 'gps'; break;
+      case 'normal_shutdown': r.cause = silentMs > 14 * D ? 'seasonal' : 'unknown'; break;
+      default: r.cause = 'unknown';
+    }
+    return r;
+  }
+
+  /* Several units at one customer losing power within a 3-hour window
+     points to shop work rather than individual drivers. */
+  function markBatches(devices, cls) {
+    var byCust = {};
+    devices.forEach(function (d) {
+      var c = cls[d.serial];
+      if (c && c.cause === 'unplugged') (byCust[d.customerId] = byCust[d.customerId] || []).push(d);
+    });
+    Object.keys(byCust).forEach(function (cid) {
+      var list = byCust[cid].slice().sort(function (a, b) { return t(a.lastCommAt) - t(b.lastCommAt); });
+      for (var i = 0; i < list.length; i++) {
+        var group = [list[i]];
+        for (var j = 0; j < list.length; j++) {
+          if (j !== i && Math.abs(t(list[j].lastCommAt) - t(list[i].lastCommAt)) <= 3 * H) group.push(list[j]);
+        }
+        if (group.length >= 3) group.forEach(function (g) {
+          var c = cls[g.serial];
+          if (!c.batch || c.batchSize < group.length) { c.batch = true; c.batchSize = group.length; }
+        });
+      }
+    });
+  }
+
+  function nextStep(c) {
+    if (!c || !c.silent) return 'Reporting normally.';
+    switch (c.cause) {
+      case 'unplugged': return c.batch
+        ? c.batchSize + ' units at this customer lost power within hours of each other. That points to shop work, not drivers. Ask the fleet manager before sending an installer. Stored records upload once the units are plugged back in.'
+        : 'Power was removed with the ignition off. Check with the driver or fleet manager; if the device was pulled on purpose, consider a harness install in a less accessible spot.';
+      case 'disconnect': return c.expected
+        ? 'This CNG vehicle’s battery disconnect is switched off most nights, and it has been off less than three days (a weekend, say). The tracker reconnects when the switch goes back on. Nothing to do yet.'
+        : (c.routine ? 'This CNG vehicle’s battery disconnect is normally switched off overnight, but it has been off much longer than usual. ' : 'The tracker lost power minutes after a normal shutdown with a healthy battery, which matches a CNG battery disconnect being switched off. ')
+          + 'Ask the fleet manager whether the vehicle is parked with the switch off. Stored data uploads once it is back on. The switch is a safety device on CNG vehicles, so don’t ask drivers to leave it on, and don’t rewire the tracker around it without the fleet’s sign-off.';
+      case 'voltage': return 'Supply voltage was low or unstable before it went quiet. Book an installer to check the harness and connection.';
+      case 'gps': return 'The vehicle is running but not getting a location fix. Usually antenna placement or obstruction: inspect where the device is mounted.';
+      case 'seasonal': return 'Normal shutdown and parked for weeks. Confirm with the customer that the vehicle is out of service for the season.';
+      case 'notinstalled': return 'Activated but has never recorded a trip. Confirm the device was installed and is plugged in.';
+      default: return 'No clear signal before it went quiet. Ask the customer whether the vehicle is in use.';
+    }
+  }
+
+  /* Full analysis over a normalized dataset. */
+  function analyze(data) {
+    var asOf = t(data.asOf) || Date.now();
+    var devices = data.devices || [], customers = data.customers || [], flags = data.flags || {};
+    var custById = {}; customers.forEach(function (c) { custById[c.id] = c; });
+    var cls = {};
+    devices.forEach(function (d) { cls[d.serial] = classifyDevice(d, asOf, flags[d.serial]); });
+    markBatches(devices, cls);
+    var health = {};
+    customers.forEach(function (c) { health[c.id] = { units: 0, active: 0, reporting: 0, silent: 0, pmTracked: 0, pmOk: 0, causes: {} }; });
+    devices.forEach(function (d) {
+      var h = health[d.customerId] || (health[d.customerId] = { units: 0, active: 0, reporting: 0, silent: 0, pmTracked: 0, pmOk: 0, causes: {} });
+      h.units++;
+      var c = cls[d.serial];
+      if (d.archived) return;
+      h.active++;
+      if (c.silent) { h.silent++; h.causes[c.cause] = (h.causes[c.cause] || 0) + 1; } else h.reporting++;
+      if (d.milesToService != null && d.milesToService !== '' && isFinite(+d.milesToService)) { h.pmTracked++; if (+d.milesToService >= 0) h.pmOk++; }
+    });
+    Object.keys(health).forEach(function (cid) {
+      var h = health[cid], c = custById[cid] || {};
+      h.reportingPct = h.active ? h.reporting / h.active * 100 : null;
+      h.pmPct = h.pmTracked ? h.pmOk / h.pmTracked * 100 : null;
+      var login = t(c.lastAdminLoginAt);
+      h.loginDays = login == null ? null : Math.floor((asOf - login) / D);
+      var ren = t(c.renewalAt);
+      h.renewalDays = ren == null ? null : Math.ceil((ren - asOf) / D);
+      h.churnRisk = h.loginDays != null && h.loginDays >= 30;
+    });
+    return { asOf: asOf, cls: cls, health: health, custById: custById };
+  }
+
+  /* One ranked list of things a person should act on. */
+  function queue(data, A) {
+    var items = [], groups = {};
+    (data.devices || []).forEach(function (d) {
+      var c = A.cls[d.serial];
+      if (!c || !c.silent || c.expected || c.cause === 'seasonal' || c.cause === 'notinstalled') return;
+      var key = d.customerId + '~' + c.cause + (c.batch ? '~batch' : '');
+      var g = groups[key] || (groups[key] = { customerId: d.customerId, cause: c.cause, batch: !!c.batch, serials: [], maxSilent: 0 });
+      g.serials.push(d.serial); g.maxSilent = Math.max(g.maxSilent, c.silentMs);
+    });
+    Object.keys(groups).forEach(function (k) {
+      var g = groups[k], n = g.serials.length, cz = CAUSES[g.cause];
+      var text = g.cause === 'disconnect'
+        ? n + (n === 1 ? ' CNG vehicle' : ' CNG vehicles') + ' silent, battery disconnect likely left off. Longest: ' + fmtAgo(g.maxSilent) + '.'
+        : g.batch
+        ? n + ' vehicles lost power within hours of each other, likely during shop work.'
+        : n + (n === 1 ? ' vehicle' : ' vehicles') + ' silent, ' + cz.label.toLowerCase().replace('cng', 'CNG') + '. Longest: ' + fmtAgo(g.maxSilent) + '.';
+      items.push({ id: 'dev~' + k, cat: 'devices', sev: g.cause === 'unknown' || g.cause === 'disconnect' ? 'Risk' : 'Critical', customerId: g.customerId, kind: cz.label, text: text, impactLabel: n + (n === 1 ? ' vehicle' : ' vehicles'), score: n * 40 + (g.batch ? 200 : 0), route: 'devices', filter: { customerId: g.customerId, cause: g.cause } });
+    });
+    Object.keys(A.health).forEach(function (cid) {
+      var h = A.health[cid];
+      if (!h.churnRisk) return;
+      var txt = 'No admin login for ' + h.loginDays + ' days.' + (h.renewalDays != null && h.renewalDays > 0 ? ' Renewal in ' + h.renewalDays + ' days.' : '');
+      items.push({ id: 'cust~' + cid, cat: 'customers', sev: 'Risk', customerId: cid, kind: 'Adoption', text: txt, impactLabel: 'Renewal risk', score: 300 + (h.renewalDays != null && h.renewalDays < 90 ? 400 : 0), route: 'customers', filter: { customerId: cid } });
+    });
+    items.sort(function (a, b) { return b.score - a.score; });
+    return items;
+  }
+
+  /* ---- CSV ---- */
+  function parseCSV(text) {
+    var rows = [], row = [], f = '', q = false, i = 0, s = String(text || '').replace(/^﻿/, '');
+    for (; i < s.length; i++) {
+      var ch = s[i];
+      if (q) {
+        if (ch === '"') { if (s[i + 1] === '"') { f += '"'; i++; } else q = false; }
+        else f += ch;
+      } else if (ch === '"') q = true;
+      else if (ch === ',') { row.push(f); f = ''; }
+      else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && s[i + 1] === '\n') i++;
+        row.push(f); f = ''; if (row.length > 1 || row[0] !== '') rows.push(row); row = [];
+      } else f += ch;
+    }
+    row.push(f); if (row.length > 1 || row[0] !== '') rows.push(row);
+    if (!rows.length) return [];
+    var head = rows[0].map(function (h) { return h.trim().toLowerCase().replace(/[^a-z0-9]/g, ''); });
+    return rows.slice(1).map(function (r) { var o = {}; head.forEach(function (h, k) { o[h] = (r[k] || '').trim(); }); return o; });
+  }
+
+  function csvCell(v) {
+    if (v == null) return '';
+    var s = Array.isArray(v) ? v.join('|') : String(v);
+    return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function toCSV(rows, cols) {
+    return [cols.join(',')].concat(rows.map(function (r) { return cols.map(function (c) { return csvCell(r[c]); }).join(','); })).join('\r\n');
+  }
+
+  var DEVICE_COLS = ['serial', 'customerId', 'vehicle', 'lastCommAt', 'lastSignal', 'activatedAt', 'lastTripAt', 'archived', 'milesToService', 'isCng'];
+  var CUSTOMER_COLS = ['id', 'name', 'database', 'lastAdminLoginAt', 'renewalAt'];
+
+  function pick(o, names) { for (var i = 0; i < names.length; i++) { var v = o[names[i]]; if (v != null && v !== '') return v; } return ''; }
+  function bool(v) { return /^(1|true|yes|y|archived)$/i.test(String(v || '').trim()); }
+  function cngVal(v) { v = String(v || '').trim(); return /^(1|true|yes|y)$/i.test(v) || /\bcng\b|compressed natural gas/i.test(v); }
+  function iso(v) { var x = t(v); return x == null ? null : new Date(x).toISOString(); }
+  function slug(v) { return String(v || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60); }
+
+  /* Returns {devices, errors}. Accepts loose header names. */
+  function rowsToDevices(rows) {
+    var out = [], errors = [], seen = {};
+    rows.forEach(function (r, i) {
+      var serial = pick(r, ['serial', 'serialnumber', 'deviceserial', 'device']);
+      var cust = pick(r, ['customerid', 'customer', 'database', 'customername', 'account']);
+      if (!serial) { errors.push('Row ' + (i + 2) + ': missing serial'); return; }
+      if (!cust) { errors.push('Row ' + (i + 2) + ': missing customer'); return; }
+      if (seen[serial]) { errors.push('Row ' + (i + 2) + ': duplicate serial ' + serial + ' (kept the first)'); return; }
+      seen[serial] = 1;
+      var sig = pick(r, ['lastsignal', 'signal', 'lastevent']).toLowerCase().replace(/[^a-z_]/g, '_');
+      if (SIGNALS.indexOf(sig) < 0) { errors.push('Row ' + (i + 2) + ': unknown lastSignal "' + sig + '", treated as blank'); sig = ''; }
+      var mts = pick(r, ['milestoservice', 'servicedue', 'milesuntilservice']);
+      out.push({
+        serial: serial.replace(/[^A-Za-z0-9_.\-]/g, ''),
+        customerId: slug(cust),
+        customerName: cust,
+        vehicle: pick(r, ['vehicle', 'vehiclename', 'name', 'asset']) || 'Unassigned',
+        lastCommAt: iso(pick(r, ['lastcommat', 'lastcommunicated', 'lastseen', 'datetime'])),
+        lastSignal: sig,
+        activatedAt: iso(pick(r, ['activatedat', 'billingstartdate', 'activationdate'])),
+        lastTripAt: iso(pick(r, ['lasttripat', 'lasttrip'])),
+        archived: bool(pick(r, ['archived', 'inactive'])),
+        milesToService: mts === '' || !isFinite(+mts) ? null : +mts,
+        isCng: cngVal(pick(r, ['iscng', 'cng', 'fueltype', 'fuel']))
+      });
+    });
+    return { devices: out, errors: errors };
+  }
+
+  function rowsToCustomers(rows) {
+    var out = [], errors = [];
+    rows.forEach(function (r, i) {
+      var name = pick(r, ['name', 'customername', 'customer']);
+      var id = slug(pick(r, ['id', 'customerid']) || name);
+      if (!id) { errors.push('Row ' + (i + 2) + ': missing customer name'); return; }
+      out.push({ id: id, name: name || id, database: pick(r, ['database', 'db']), lastAdminLoginAt: iso(pick(r, ['lastadminloginat', 'lastlogin', 'lastadminlogin'])), renewalAt: iso(pick(r, ['renewalat', 'renewal', 'renewaldate'])) });
+    });
+    return { customers: out, errors: errors };
+  }
+
+  var api = { CAUSES: CAUSES, CAUSE_ORDER: CAUSE_ORDER, SIGNALS: SIGNALS, DEVICE_COLS: DEVICE_COLS, CUSTOMER_COLS: CUSTOMER_COLS,
+    classifyDevice: classifyDevice, markBatches: markBatches, nextStep: nextStep, analyze: analyze, queue: queue,
+    fmtAgo: fmtAgo, parseCSV: parseCSV, toCSV: toCSV, rowsToDevices: rowsToDevices, rowsToCustomers: rowsToCustomers, slug: slug, time: t };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  root.PitwallEngine = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+(function(){
+'use strict';
+var E = window.PitwallEngine;
+var H = 3600e3;
+var S = {
+  db:null, user:null, uid:null, canEdit:false, dl:null, failed:false,
+  ready:{}, customers:[], devices:[], deviceDocIds:[], meta:null, flags:{}, actions:[], tickets:[],
+  route:'portfolio', qFilter:'all', search:'',
+  dev:{cause:'', customerId:'', text:'', sel:{}, open:null, form:null},
+  cust:{open:null},
+  fleet:{customerId:''},
+  sup:{status:'open', mine:false, priority:'', customerId:'', text:'', open:null, creating:null, tab:'reply', msgs:[], unsub:null},
+  imp:null, confirmRemove:false,
+  mcp:null, geoCfg:null, geo:{status:{}, syncing:false, err:''}
+};
+var A = null;
+
+/* ---------- support constants ---------- */
+var STATUS = { 'new':'New', open:'Open', waiting:'Waiting on customer', resolved:'Resolved', closed:'Closed' };
+var STATUS_TONE = { 'new':'t-info', open:'t-purple', waiting:'t-warn', resolved:'t-ok', closed:'t-muted' };
+var PRIORITIES = ['Urgent','High','Normal','Low'];
+var PRIORITY_TONE = { Urgent:'t-crit', High:'t-warn', Normal:'t-muted', Low:'t-muted' };
+var CATEGORIES = ['Device issue','Installation','Account access','Reports & data','Training','Other'];
+/* Hours to first response and to resolution, by priority. */
+var SLA = { Urgent:{resp:1, res:8}, High:{resp:4, res:24}, Normal:{resp:8, res:72}, Low:{resp:24, res:168} };
+
+/* ---------- helpers ---------- */
+function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function $(id){ return document.getElementById(id); }
+function pct(n){ return n == null ? '–' : Math.round(n) + '%'; }
+function custName(id){ var c = A && A.custById[id]; return c ? c.name : (id || '–'); }
+function toast(msg){ var t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(function(){ t.hidden = true; }, 3600); }
+function dateLabel(ms){ if (ms == null) return '–'; return new Date(ms).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}); }
+function dateTimeLabel(ms){ if (ms == null) return '–'; return new Date(ms).toLocaleString('en-US', {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'}); }
+function ago(ms){ return ms == null ? '–' : E.fmtAgo(Date.now() - ms) + ' ago'; }
+function toneOf(cause){ return 't-' + (E.CAUSES[cause] ? E.CAUSES[cause].tone : 'muted'); }
+var SIGNAL_LABEL = { power_removed:'Power removed, ignition off', battery_disconnect:'Shutdown, then power cut (CNG switch)', low_voltage:'Low supply voltage', reboot_loop:'Repeated reboots', ignition_no_gps:'Ignition on, no GPS fix', normal_shutdown:'Normal shutdown', normal:'Normal trip end', '':'No events recorded' };
+function cngTag(d){ return d && d.isCng ? '<span class="chip t-cng cng-tag" title="CNG vehicle: may have a battery disconnect switch">CNG</span>' : ''; }
+function period(){ return new Date(A.asOf).toISOString().slice(0,7); }
+function deviceBySerial(serial){ for (var i = 0; i < S.devices.length; i++) if (S.devices[i].serial === serial) return S.devices[i]; return null; }
+function who(uid){ return uid ? '<span data-uid="' + esc(uid) + '">' + (uid === S.uid ? 'You' : 'Someone') + '</span>' : 'Pitwall'; }
+function fillNames(){
+  if (!S.user) return;
+  var ids = [];
+  document.querySelectorAll('[data-uid]').forEach(function(s){ var u = s.getAttribute('data-uid'); if (u && ids.indexOf(u) < 0) ids.push(u); });
+  if (!ids.length) return;
+  S.user.profiles(ids).then(function(ps){
+    document.querySelectorAll('[data-uid]').forEach(function(s){ var p = ps[s.getAttribute('data-uid')]; if (p) s.textContent = p.isMe ? 'You' : (p.name || 'Someone'); });
+  });
+}
+function nowIso(){ return new Date().toISOString(); }
+function wait(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
+
+/* ---------- tickets ---------- */
+function ticketById(id){ for (var i = 0; i < S.tickets.length; i++) if (S.tickets[i]._id === id) return S.tickets[i]; return null; }
+function isOpen(t){ return t.status === 'new' || t.status === 'open' || t.status === 'waiting'; }
+function slaOf(t){
+  var p = SLA[t.priority] || SLA.Normal, created = E.time(t.createdAt), now = Date.now();
+  if (!isOpen(t)) return {state:'done', label:STATUS[t.status]};
+  if (t.status === 'waiting') return {state:'paused', label:'Waiting on customer'};
+  var first = !t.firstResponseAt, due = created + (first ? p.resp : p.res) * H, left = due - now;
+  return {state: left < 0 ? 'overdue' : left < 2 * H ? 'soon' : 'ok', what: first ? 'First response' : 'Resolution', due: due, left: left,
+    label: left < 0 ? (first ? 'Response' : 'Resolution') + ' overdue ' + E.fmtAgo(-left) : (first ? 'Respond' : 'Resolve') + ' within ' + E.fmtAgo(left)};
+}
+function slaChip(t){ var s = slaOf(t); var tone = s.state === 'overdue' ? 't-crit' : s.state === 'soon' ? 't-warn' : s.state === 'paused' ? 't-muted' : s.state === 'done' ? 't-ok' : 't-muted'; return '<span class="chip ' + tone + '">' + esc(s.label) + '</span>'; }
+function statusChip(s){ return '<span class="chip ' + (STATUS_TONE[s] || 't-muted') + '">' + esc(STATUS[s] || s) + '</span>'; }
+function prioChip(p){ return '<span class="chip ' + (PRIORITY_TONE[p] || 't-muted') + '">' + esc(p) + '</span>'; }
+function ticketsFor(filter){ return S.tickets.filter(filter); }
+function openTicketsForSerial(serial){ return S.tickets.filter(function(t){ return (t.serials || []).indexOf(serial) >= 0; }); }
+
+function nextTicketNumber(){
+  var ref = S.db.doc('counters/tickets');
+  var maxSeen = S.tickets.reduce(function(m, t){ return Math.max(m, +t.number || 0); }, 1000);
+  function attempt(k){
+    return ref.acquire({holder: S.uid || 'viewer', ttlMs: 5000}).then(function(r){
+      if (!r.acquired) { if (k >= 6) return Promise.reject({code:'busy'}); return wait(250 + Math.random() * 500).then(function(){ return attempt(k + 1); }); }
+      return ref.get().then(function(s){
+        var n = Math.max(s.exists && +s.data().next ? +s.data().next : 1001, maxSeen + 1);
+        return ref.update({next: n + 1}).then(function(){ return n; });
+      });
+    });
+  }
+  return attempt(0);
+}
+/* t: {subject, customerId, category, priority, contact, serials, source, assignee, briefKey}; firstMsg: {kind, body, from} */
+function createTicket(t, firstMsg){
+  return nextTicketNumber().then(function(n){
+    var id = 't' + n, now = nowIso();
+    var serials = t.serials || [];
+    var doc = { number:n, subject:t.subject, customerId:t.customerId, category:t.category || 'Other', priority:t.priority || 'Normal', status:'new',
+      assignee:t.assignee || null, contact:t.contact || '', serials:serials, vehicles:serials.map(function(s){ var d = deviceBySerial(s); return d ? d.vehicle : s; }),
+      source:t.source || 'staff', createdBy:S.uid, createdAt:now, updatedAt:now, firstResponseAt:null, resolvedAt:null };
+    if (t.briefKey) { doc.briefKey = t.briefKey; doc.briefPeriod = period(); }
+    var msgs = S.db.collection('tickets/' + id + '/messages');
+    return S.db.doc('tickets/' + id).set(doc)
+      .then(function(){ return msgs.add({kind:'event', event:'created', by:S.uid, at:now}); })
+      .then(function(){ return firstMsg && firstMsg.body ? msgs.add({kind:firstMsg.kind || 'request', body:firstMsg.body, from:firstMsg.from || '', by:S.uid, at:nowIso()}) : null; })
+      .then(function(){ return {id:id, number:n}; });
+  });
+}
+function updateTicket(id, patch, event){
+  patch.updatedAt = nowIso();
+  var ops = [S.db.doc('tickets/' + id).update(patch)];
+  if (event) ops.push(S.db.collection('tickets/' + id + '/messages').add(Object.assign({kind:'event', by:S.uid, at:nowIso()}, event)));
+  return Promise.all(ops);
+}
+function openTicket(id){
+  if (S.sup.unsub) { S.sup.unsub(); S.sup.unsub = null; }
+  S.sup.open = id; S.sup.msgs = []; S.sup.creating = null;
+  if (id) S.sup.unsub = S.db.collection('tickets/' + id + '/messages').orderBy('at').onSnapshot(function(s){
+    S.sup.msgs = s.docs.map(function(d){ return Object.assign({_id:d.id}, d.data()); }); schedule();
+  }, function(){ toast('Couldn’t load this ticket’s messages.'); });
+  if (location.hash !== '#support') location.hash = '#support'; else schedule();
+}
+function startNewTicket(prefill){
+  if (S.sup.unsub) { S.sup.unsub(); S.sup.unsub = null; }
+  S.sup.open = null; S.sup.creating = prefill || {};
+  if (location.hash !== '#support') location.hash = '#support'; else schedule();
+  setTimeout(function(){ var el = $('ntSubject'); if (el) el.focus(); }, 60);
+}
+
+/* ---------- data ---------- */
+function recompute(){
+  S.data = { asOf: S.meta && S.meta.asOf, devices: S.devices, customers: S.customers, flags: S.flags };
+  A = E.analyze(S.data);
+}
+var pending = false;
+function schedule(){ if (pending) return; pending = true; requestAnimationFrame(function(){ pending = false; render(); }); }
+
+function subscribe(){
+  var db = S.db;
+  function fail(e){ console.warn(e); if (e && (e.code === 'revoked' || e.code === 'not_granted')) { S.failed = true; schedule(); } }
+  db.collection('customers').onSnapshot(function(s){ S.customers = s.docs.map(function(d){ return d.data(); }); S.ready.customers = true; schedule(); }, fail);
+  db.collection('devices').onSnapshot(function(s){
+    var all = []; S.deviceDocIds = [];
+    s.docs.forEach(function(d){ S.deviceDocIds.push(d.id); (d.data().devices || []).forEach(function(x){ all.push(x); }); });
+    S.devices = all; S.ready.devices = true; schedule();
+  }, fail);
+  db.collection('settings').onSnapshot(function(s){ s.docs.forEach(function(d){ if (d.id === 'meta') S.meta = d.data(); if (d.id === 'geotab') S.geoCfg = d.data(); if (d.id === 'onboarding') S.onb = d.data(); }); S.ready.settings = true; schedule(); }, fail);
+  db.collection('flags').onSnapshot(function(s){ var m = {}; s.docs.forEach(function(d){ m[d.id] = d.data(); }); S.flags = m; schedule(); }, fail);
+  db.collection('tickets').onSnapshot(function(s){ S.tickets = s.docs.map(function(d){ return Object.assign({_id:d.id}, d.data()); }); S.ready.tickets = true; schedule(); }, fail);
+}
+
+function write(p, okMsg){
+  return p.then(function(r){ if (okMsg) toast(okMsg); return r === undefined ? true : r; }, function(e){
+    var m = e && e.code === 'quota_exceeded' ? 'Storage is full. Close out old tickets or remove example data, then try again.'
+      : e && e.code === 'invalid_argument' ? 'You don’t have permission to change this. Ask the owner for edit access.'
+      : e && e.code === 'busy' ? 'Someone else is creating a ticket right now. Try again in a moment.'
+      : 'Couldn’t save. Check your connection and try again.';
+    toast(m); return false;
+  });
+}
+
+/* ---------- live MyGeotab sync (runs on the server) ---------- */
+var GEO_INFO = {syncMinutes:15};
+function geoDbs(){ return (S.geoCfg && S.geoCfg.databases) || []; }
+function geoSaveCfg(){ return Promise.resolve(); }
+function geoApi(path, body){ return window.pitwallApi(path, body); }
+geoApi('/pitwall/api/geotab/info').then(function(i){ GEO_INFO = i; schedule(); }, function(){});
+function geoSync(only){
+  geoApi('/pitwall/api/geotab/sync', {database: only || null}).then(function(){ toast('Sync started. Results appear here in a moment.'); }, function(e){ toast(e.message); });
+}
+function geoRemove(db){
+  geoApi('/pitwall/api/geotab/remove', {database: db}).then(function(){ toast('Removed ' + db + '. Its devices stay until you remove them or re-import.'); }, function(e){ toast(e.message); });
+}
+function geoPanel(){
+  var dbs = geoDbs(), busy = dbs.some(function(e){ return e.status; });
+  var h = '<section class="panel" aria-labelledby="geoh"><div class="panel-h"><h2 id="geoh">Live from MyGeotab</h2>'
+    + (S.canEdit && dbs.length ? '<button type="button" class="btn primary" data-act="geo-sync"' + (busy ? ' disabled' : '') + '>' + (busy ? 'Syncing…' : 'Sync all now') + '</button>' : '') + '</div><div class="panel-b">';
+  h += '<p class="sub" style="margin:0">Pitwall signs in to each database and syncs every ' + GEO_INFO.syncMinutes + ' minutes on its own. It only reads; nothing in MyGeotab changes. Use a MyGeotab user made for Pitwall with view-only access.</p>';
+  if (dbs.length) h += '<div class="tbl-wrap"><table><thead><tr><th>Database</th><th>Customer</th><th class="num">Devices</th><th class="num">Silent</th><th>Last sync</th><th></th></tr></thead><tbody>'
+    + dbs.map(function(e){
+      var l = e.last || {};
+      return '<tr><td class="mono">' + esc(e.database) + '<div class="sub">' + esc(e.userName || '') + '</div></td><td>' + esc(e.customer || e.database) + '</td><td class="num">' + (l.devices != null ? l.devices : '–') + '</td><td class="num">' + (l.silent != null ? l.silent : '–') + '</td>'
+        + '<td>' + (e.status ? '<span class="sub">' + esc(e.status) + '</span>' : l.error ? '<span class="bad">' + esc(l.error) + '</span>' : l.at ? esc(ago(E.time(l.at))) : '<span class="sub">Waiting for first sync</span>') + '</td>'
+        + '<td style="text-align:right; white-space:nowrap">' + (S.canEdit ? '<button type="button" class="btn sm" data-act="geo-sync-one" data-id="' + esc(e.database) + '"' + (e.status ? ' disabled' : '') + '>Sync</button> <button type="button" class="btn sm ghost" data-act="geo-remove" data-id="' + esc(e.database) + '">Remove</button>' : '') + '</td></tr>';
+    }).join('') + '</tbody></table></div>';
+  if (S.canEdit) h += '<form id="geoForm" class="panel-b" style="padding:0" novalidate><h3>Add a database</h3><div class="row" style="align-items:flex-end">'
+    + '<div class="field" style="flex:1 1 180px"><label for="geoDb">MyGeotab database</label><input class="input" id="geoDb" autocomplete="off" placeholder="e.g. dagostino_"></div>'
+    + '<div class="field" style="flex:1 1 200px"><label for="geoCust">Customer name</label><input class="input" id="geoCust" autocomplete="off" placeholder="e.g. Stingray Productions"></div></div>'
+    + '<div class="row" style="align-items:flex-end"><div class="field" style="flex:1 1 200px"><label for="geoUser">MyGeotab username</label><input class="input" id="geoUser" autocomplete="off" autocapitalize="none"></div>'
+    + '<div class="field" style="flex:1 1 200px"><label for="geoPass">MyGeotab password</label><input class="input" id="geoPass" type="password" autocomplete="new-password"></div>'
+    + '<div class="field" style="flex:1 1 180px"><label for="geoServer">Server</label><input class="input" id="geoServer" autocomplete="off" value="my.geotab.com"></div></div>'
+    + '<div class="row"><button type="submit" class="btn">Check login and add</button><span class="sub">The password is stored encrypted on your site.</span></div></form>';
+  else h += '<p class="sub" style="margin:0">Only admins and editors can add databases or sync.</p>';
+  return h + '</div></section>';
+}
+/* ---------- backups ---------- */
+var BK = null, BK_AT = 0;
+function bkLoad(force){ if (!force && Date.now() - BK_AT < 60000) return; BK_AT = Date.now(); geoApi('/pitwall/api/backups').then(function(r){ BK = r; schedule(); }, function(){}); }
+function backupPanel(){
+  bkLoad(false);
+  var h = '<section class="panel" aria-labelledby="bkh"><div class="panel-h"><h2 id="bkh">Backups</h2>' + '' + '</div><div class="panel-b">';
+  if (!BK) return h + '<p class="sub" style="margin:0">Checking backups…</p></div></section>';
+  h += '<div class="tbl-wrap"><table><thead><tr><th>Where</th><th>Status</th><th>Keeps</th><th class="num">Free space</th></tr></thead><tbody>'
+    + '<tr><td><strong>Your WordPress.com site</strong></td><td>' + (BK.local.latest ? 'Latest copy ' + esc(BK.local.latest) : 'Included in your WordPress.com plan’s site backups') + '</td><td>Per your plan</td><td class="num">–</td></tr>'
+    + (BK.drives || []).map(function(d){
+      var name = d.label === 'pitwalla' ? 'Backup drive (PITWALL-A)' : d.label === 'pitwallb' ? 'Drive B (PITWALL-B)' : d.label;
+      return '<tr><td><strong>' + esc(name) + '</strong></td><td>' + (d.error ? '<span class="bad">' + esc(d.error) + '</span>' : d.connected ? '<span class="chip t-ok">Connected</span> ' + (d.lastCopy ? 'copied ' + esc(ago(E.time(d.lastCopy))) : '') : '<span class="chip t-muted">Not plugged in</span>') + '</td><td>365 daily + every month</td><td class="num">' + (d.freeGB != null ? d.freeGB.toLocaleString('en-US') + ' GB' : '–') + '</td></tr>';
+    }).join('') + '</tbody></table></div>';
+  if (BK.drives && BK.drives.length && !BK.drives.some(function(d){ return d.connected; })) h += '<p class="sub" style="margin:0">No backup drive is connected. Plug in the drive named PITWALL-A (formatted as exFAT) and it’s used within the hour.</p>';
+  return h + '</div></section>';
+}
+
+/* ---------- roles: each login gets its own home, menu and data ---------- */
+var ROLE = null, MYCID = null, MYNAME = '';
+var NAV = {
+  admin: ['portfolio', 'devices', 'support', 'customers', 'fleet', 'data', 'team'],
+  editor: ['portfolio', 'devices', 'support', 'customers', 'fleet', 'data', 'team'],
+  staff: ['mine', 'devices', 'support', 'fleet', 'team'],
+  customer: ['fleet', 'support', 'team']
+};
+var HOME = { admin: 'portfolio', editor: 'devices', staff: 'mine', customer: 'fleet' };
+var NAV_LABEL = { customer: { fleet: 'My fleet', support: 'Help requests', team: 'My account' } };
+window.pitwallApi('/pitwall/api/state').then(function(s){
+  if (!s.user) return;
+  if (s.user.mustChangePassword) { location.href = '/pitwall/team#welcome'; return; }
+  ROLE = NAV[s.user.role] ? s.user.role : 'staff'; MYCID = s.user.customerId || null; MYNAME = s.user.name || '';
+  if (ROLE === 'admin') window.pitwallApi('/pitwall/api/users').then(function(j){ S.team = j.users; schedule(); }, function(){});
+  if (ROLE === 'customer') { var nav = $('nav'), fl = nav.querySelector('[data-r="fleet"]'); if (fl) nav.insertBefore(fl, nav.firstChild); }
+  document.querySelectorAll('#nav a').forEach(function(a){
+    var r = a.getAttribute('data-r'), ok = NAV[ROLE].indexOf(r) >= 0;
+    a.hidden = !ok;
+    var lbl = NAV_LABEL[ROLE] && NAV_LABEL[ROLE][r];
+    if (lbl && a.firstChild && a.firstChild.nodeType === 3) a.firstChild.nodeValue = lbl + ' ';
+  });
+  schedule();
+}, function(){});
+function allowed(route){ return !ROLE || NAV[ROLE].indexOf(route) >= 0; }
+
+/* Staff home: what's on my plate. */
+function myTickets(){ return S.tickets.filter(function(t){ return isOpen(t) && t.assignee === S.uid; }).sort(function(a, b){ return (slaOf(a).left || 1e15) - (slaOf(b).left || 1e15); }); }
+function vMine(){
+  var mine = myTickets();
+  var claim = S.tickets.filter(function(t){ return isOpen(t) && !t.assignee; }).sort(function(a, b){ return PRIORITIES.indexOf(a.priority) - PRIORITIES.indexOf(b.priority); });
+  var first = (MYNAME || '').split(' ')[0];
+  var overdue = mine.filter(function(t){ return slaOf(t).state === 'overdue'; }).length;
+  var hour = new Date().getHours(), greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  var h = '<header class="head"><div><span class="eyebrow">' + esc(new Date().toLocaleDateString('en-US', {weekday:'long', month:'short', day:'numeric'})) + '</span>'
+    + '<h1>' + greet + (first ? ', ' + esc(first) : '') + '</h1>'
+    + '<p class="lede">' + (mine.length ? 'You have ' + mine.length + ' open ticket' + (mine.length === 1 ? '' : 's') + (overdue ? ', ' + overdue + ' past its deadline' : '') + '.' : 'No tickets assigned to you right now.') + (claim.length ? ' ' + claim.length + ' unassigned ' + (claim.length === 1 ? 'needs' : 'need') + ' an owner.' : '') + '</p></div>'
+    + '<button type="button" class="btn primary" data-act="new-ticket">New ticket</button></header>';
+  h += '<section class="kpis">' + kpi('Assigned to you', mine.length, 'Open tickets', false) + kpi('Past deadline', overdue, 'Of yours', overdue > 0) + kpi('Unassigned', claim.length, 'Waiting for an owner', claim.length > 0) + '</section>';
+  function rows(list, withClaim){
+    return '<div class="tbl-wrap"><table><thead><tr><th class="num">#</th><th>Subject</th><th>Priority</th><th>Status</th><th>Deadline</th>' + (withClaim ? '<th></th>' : '') + '</tr></thead><tbody>'
+      + list.map(function(t){ return '<tr class="click" data-act="open-ticket" data-id="' + esc(t._id) + '" tabindex="0"><td class="num">' + t.number + '</td><td style="min-width:220px"><strong>' + esc(t.subject) + '</strong><div class="sub">' + esc(custName(t.customerId)) + '</div></td><td>' + prioChip(t.priority) + '</td><td>' + statusChip(t.status) + '</td><td>' + slaChip(t) + '</td>'
+        + (withClaim ? '<td style="text-align:right"><button type="button" class="btn sm" data-act="claim" data-id="' + esc(t._id) + '">Assign to me</button></td>' : '') + '</tr>'; }).join('') + '</tbody></table></div>';
+  }
+  h += '<section class="panel"><div class="panel-h"><h2>Your tickets</h2><a href="#support">All tickets</a></div>' + (mine.length ? rows(mine, false) : '<div class="empty">Nothing assigned to you. Pick one up below.</div>') + '</section>';
+  if (claim.length) h += '<section class="panel"><div class="panel-h"><h2>Needs an owner</h2></div>' + rows(claim.slice(0, 8), true) + '</section>';
+  return h;
+}
+
+/* Fleet manager: only their own help requests, no internal notes, no staff controls. */
+function vCustSupport(){
+  if (S.sup.creating) return vCustNew();
+  if (S.sup.open) { var t = ticketById(S.sup.open); if (t) return vCustTicket(t); }
+  var open = S.tickets.filter(isOpen), closed = S.tickets.filter(function(t){ return !isOpen(t); });
+  var h = '<header class="head"><div><span class="eyebrow">' + esc(custName(MYCID)) + '</span><h1>Help requests</h1><p class="lede">Ask your reseller for help and follow every request in one place.</p></div><button type="button" class="btn primary" data-act="new-ticket">New request</button></header>';
+  function list(arr){ return '<div class="tbl-wrap"><table><thead><tr><th class="num">#</th><th>Request</th><th>Status</th><th>Last update</th></tr></thead><tbody>' + arr.map(function(t){ return '<tr class="click" data-act="open-ticket" data-id="' + esc(t._id) + '" tabindex="0"><td class="num">' + t.number + '</td><td><strong>' + esc(t.subject) + '</strong></td><td>' + statusChip(t.status) + '</td><td class="sub">' + esc(ago(E.time(t.updatedAt))) + '</td></tr>'; }).join('') + '</tbody></table></div>'; }
+  h += '<section class="panel"><div class="panel-h"><h2>Open</h2></div>' + (open.length ? list(open) : '<div class="empty">No open requests.</div>') + '</section>';
+  if (closed.length) h += '<section class="panel"><div class="panel-h"><h2>Finished</h2></div>' + list(closed) + '</section>';
+  return h;
+}
+function vCustTicket(t){
+  var h = '<div><button type="button" class="btn ghost" data-act="tickets-back" style="padding-left:0">← All requests</button></div>';
+  h += '<header class="head"><div><span class="eyebrow">Request #' + t.number + '</span><h1>' + esc(t.subject) + '</h1><div class="row">' + statusChip(t.status) + '</div></div></header>';
+  h += '<section style="display:flex; flex-direction:column; gap:14px; max-width:760px"><div class="thread">';
+  if (!S.sup.msgs.length) h += '<p class="sub">Loading conversation…</p>';
+  S.sup.msgs.forEach(function(m){
+    var at = esc(dateTimeLabel(E.time(m.at)));
+    if (m.kind === 'event') { if (m.event === 'created') h += '<div class="msg event">Request opened · ' + at + '</div>'; return; }
+    if (m.kind === 'note') return;
+    var label = m.kind === 'request' ? 'You' : who(m.by) + ' (your reseller)';
+    h += '<article class="msg ' + esc(m.kind) + '"><div class="meta"><span>' + label + '</span><span>' + at + '</span></div><div class="text">' + esc(m.body) + '</div></article>';
+  });
+  h += '</div>';
+  if (isOpen(t)) h += '<form id="custMsgForm" class="panel" novalidate><div class="panel-b"><div class="field"><label for="custMsg">Add a message</label><textarea class="input" id="custMsg" rows="4"></textarea></div><div class="row"><button type="submit" class="btn primary">Send</button></div></div></form>';
+  else h += '<p class="sub">This request is ' + esc(STATUS[t.status].toLowerCase()) + '. Start a new request if you need more help.</p>';
+  return h + '</section>';
+}
+function vCustNew(){
+  var p = S.sup.creating || {};
+  return '<div><button type="button" class="btn ghost" data-act="tickets-back" style="padding-left:0">← All requests</button></div>'
+    + '<header class="head"><div><span class="eyebrow">' + esc(custName(MYCID)) + '</span><h1>New help request</h1><p class="lede">Tell your reseller what you need. You’ll see their replies here.</p></div></header>'
+    + '<form id="custNewForm" class="panel" novalidate><div class="panel-b" style="max-width:760px">'
+    + '<div class="field"><label for="cnSubject">What do you need help with?</label><input class="input" id="cnSubject" autocomplete="off" value="' + esc(p.subject || '') + '" placeholder="e.g. Truck 12 isn’t showing on the map"></div>'
+    + '<div class="field"><label for="cnBody">Details</label><textarea class="input" id="cnBody" rows="5"></textarea></div>'
+    + '<div class="field"><label for="cnContact">Best way to reach you</label><input class="input" id="cnContact" autocomplete="off" value="' + esc(MYNAME) + '"></div>'
+    + '<div class="row"><button type="submit" class="btn primary">Send request</button><button type="button" class="btn" data-act="tickets-back">Cancel</button></div></div></form>';
+}
+
+/* ---------- render ---------- */
+function render(){
+  var route = (location.hash || '').slice(1) || (ROLE ? HOME[ROLE] : 'portfolio');
+  if (ROLE && (!location.hash || !allowed(route))) { route = allowed(route) ? route : HOME[ROLE]; history.replaceState(null, '', '#' + route); }
+  S.route = route;
+  document.querySelectorAll('#nav a').forEach(function(a){ if (a.getAttribute('data-r') === route) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  var v = $('view');
+  if (S.failed) { v.innerHTML = '<div class="empty"><h1>Saved data isn’t available here</h1><p class="lede">This page couldn’t reach Pitwall. Reload the page.</p></div>'; return; }
+  if (!S.db) { v.innerHTML = '<div class="empty"><h1>Connecting…</h1></div>'; return; }
+  if (!ROLE || !S.ready.customers || !S.ready.devices || !S.ready.settings) { v.innerHTML = '<div class="empty"><h1>Loading saved data…</h1></div>'; return; }
+  recompute();
+  var silentN = Object.keys(A.cls).filter(function(k){ return A.cls[k].silent; }).length;
+  var openT = S.tickets.filter(isOpen);
+  $('nDev').textContent = silentN || '';
+  $('nSup').textContent = openT.length || '';
+  if ($('nMine')) $('nMine').textContent = ROLE === 'staff' ? (myTickets().length || '') : '';
+  $('railSub').textContent = ROLE === 'customer' ? custName(MYCID) : 'Reseller console · ' + S.customers.length + ' customer' + (S.customers.length === 1 ? '' : 's');
+  $('railFoot').innerHTML = '<span>Device data as of ' + esc(dateTimeLabel(A.asOf)) + '</span><span>' + (S.meta && S.meta.source === 'example' ? 'Example dataset' : S.meta && S.meta.source === 'mygeotab' ? 'Live from MyGeotab' : S.devices.length ? 'Imported data' : 'No data yet') + '</span>';
+  var html = '';
+  if (S.meta && S.meta.source === 'example' && route !== 'data') html += '<div class="banner"><span>You’re looking at an example dataset of fictional companies.</span><a class="btn sm" href="#data">Connect MyGeotab</a></div>';
+  if (!S.devices.length && ['portfolio', 'devices', 'fleet', 'customers'].indexOf(route) >= 0) html += emptyAll();
+  else html += (route === 'portfolio' && showOnboarding() ? onboardingCard(false) : '') + ({portfolio:vPortfolio, devices:vDevices, support:(ROLE === 'customer' ? vCustSupport : vSupport), mine:vMine, customers:vCustomers, fleet:vFleet, data:vData}[route] || vPortfolio)();
+
+  /* Keep what someone is typing when a live update re-renders the view. */
+  var keep = {}, focusId = document.activeElement && v.contains(document.activeElement) ? document.activeElement.id : '';
+  if (S._lastKey === route + '|' + (S.sup.open || '') + '|' + (S.sup.creating ? 'new' : '')) v.querySelectorAll('input[id], textarea[id], select[id]').forEach(function(el){
+    if (el.type === 'file' || el.type === 'checkbox' || el.hasAttribute('data-live')) return;
+    keep[el.id] = el.type === 'radio' ? {c:el.checked} : {v:el.value};
+  });
+  S._lastKey = route + '|' + (S.sup.open || '') + '|' + (S.sup.creating ? 'new' : '');
+  v.innerHTML = html;
+  Object.keys(keep).forEach(function(id){ var el = $(id); if (!el) return; var k = keep[id]; if ('c' in k) el.checked = k.c; else if (el.value !== k.v) el.value = k.v; });
+  if (focusId) { var fe = $(focusId); if (fe) fe.focus(); }
+  if (route === 'portfolio') searchResults();
+  fillNames();
+}
+
+function emptyAll(){
+  if (ROLE === 'customer') return '<div class="panel"><div class="empty"><h1>Your fleet isn’t connected yet</h1><p class="lede">Your reseller is linking your MyGeotab account to Pitwall. Once that’s done, your vehicles and anything that needs your attention show up here. Need something now? Send a help request.</p><a class="btn primary" href="#support">Help requests</a></div></div>';
+  if (ROLE === 'staff') return '<div class="panel"><div class="empty"><h1>No customer fleets yet</h1><p class="lede">An admin or editor connects each customer’s MyGeotab database. Support tickets work in the meantime.</p><a class="btn" href="#support">Go to Support</a></div></div>';
+  if (ROLE === 'admin') return '<header class="head"><div><span class="eyebrow">Welcome' + (MYNAME ? ', ' + esc(MYNAME.split(' ')[0]) : '') + '</span><h1>Let’s get Pitwall ready</h1><p class="lede">Three steps and your team and customers can sign in. Everything here is your real data; there are no sample companies.</p></div></header>' + onboardingCard(true);
+  return '<div class="panel"><div class="empty"><h1>No devices yet</h1><p class="lede">Add your first MyGeotab database under Data and Pitwall will sync it every few minutes. You can also import a device CSV.</p><a class="btn primary" href="#data">Add a MyGeotab database</a></div></div>';
+}
+/* ---------- first-run checklist (admins) ---------- */
+function onboardingSteps(){
+  var team = S.team || [], dbs = geoDbs();
+  var staff = team.filter(function(u){ return u.role !== 'customer' && !u.isMe; }).length;
+  var has = {}; team.forEach(function(u){ if (u.role === 'customer' && u.customerId) has[u.customerId] = 1; });
+  var nc = S.customers.length, withLogin = S.customers.filter(function(c){ return has[c.id]; }).length;
+  var link = location.origin + '/pitwall/login', local = false;
+  return [
+    {done: dbs.length > 0, title: 'Connect a customer’s MyGeotab database', text: dbs.length ? dbs.length + ' connected. Add one for each customer you support.' : 'Each database becomes a customer in Pitwall and syncs every few minutes. Use a read-only MyGeotab user made just for Pitwall.', href: '#data', cta: 'Open Data'},
+    {done: staff > 0, title: 'Add your staff', text: staff ? staff + ' teammate' + (staff === 1 ? '' : 's') + ' added.' : 'Each person gets their own login. Staff work support tickets; editors can also sync MyGeotab; admins manage people.', href: '/pitwall/team', cta: 'Open Team'},
+    {done: nc > 0 && withLogin === nc, title: 'Give each customer a fleet-manager login', text: nc ? withLogin + ' of ' + nc + ' customer' + (nc === 1 ? ' has' : 's have') + ' a login. A fleet manager only ever sees their own company.' : 'Do this after connecting their database.', href: '/pitwall/team#add', cta: 'Add a fleet manager'},
+    {info: true, title: 'Send people the sign-in link', text: link + (local ? '' : ''), copy: true}
+  ];
+}
+function showOnboarding(){ return ROLE === 'admin' && !(S.onb && S.onb.hidden) && onboardingSteps().some(function(s){ return !s.done && !s.info; }); }
+function onboardingCard(noHide){
+  var st = onboardingSteps(), done = st.filter(function(s){ return s.done; }).length, first = -1;
+  st.forEach(function(s, i){ if (first < 0 && !s.done && !s.info) first = i; });
+  return '<section class="panel onb" aria-labelledby="onbh"><div class="panel-h"><h2 id="onbh">Get ready for your team and customers</h2><div class="row"><span class="sub">' + done + ' of 3 done</span>' + (noHide ? '' : '<button type="button" class="btn sm ghost" data-act="onb-hide">Hide</button>') + '</div></div><ol class="onb-list">'
+    + st.map(function(s, i){
+      return '<li class="' + (s.done ? 'done' : '') + '"><span class="onb-n" aria-hidden="true">' + (s.done ? '✓' : s.info ? '→' : i + 1) + '</span><div class="onb-t"><strong>' + esc(s.title) + '</strong><span class="sub">' + esc(s.text) + '</span></div>'
+        + (s.copy ? '<button type="button" class="btn sm" data-act="copy-link">Copy link</button>' : s.done ? '<span class="chip t-ok">Done</span>' : '<a class="btn sm' + (i === first ? ' primary' : '') + '" href="' + s.href + '">' + esc(s.cta) + '</a>') + '</li>';
+    }).join('') + '</ol></section>';
+}
+function kpi(l, v, s, bad){ return '<div class="kpi"><span class="l">' + esc(l) + '</span><span class="v' + (bad ? ' bad' : '') + '">' + esc(v) + '</span><span class="s">' + esc(s) + '</span></div>'; }
+
+/* Portfolio */
+function supportQueueItems(){
+  var out = [];
+  S.tickets.filter(isOpen).forEach(function(t){
+    var s = slaOf(t);
+    if (s.state === 'overdue') out.push({id:'tk~' + t._id, cat:'support', sev:'Critical', customerId:t.customerId, kind:'Ticket #' + t.number + ' · ' + s.what + ' overdue', text:t.subject, impactLabel:t.priority, score:900 + (3 - PRIORITIES.indexOf(t.priority)) * 50, ticket:t._id});
+    else if (!t.assignee && (t.priority === 'Urgent' || t.priority === 'High')) out.push({id:'tk~' + t._id, cat:'support', sev:'Risk', customerId:t.customerId, kind:'Ticket #' + t.number + ' · unassigned', text:t.subject, impactLabel:t.priority, score:650, ticket:t._id});
+  });
+  return out;
+}
+function vPortfolio(){
+  var q = E.queue(S.data, A).concat(supportQueueItems()).sort(function(a, b){ return b.score - a.score; });
+  var counts = {all:q.length, devices:0, support:0, customers:0};
+  q.forEach(function(i){ counts[i.cat] = (counts[i.cat] || 0) + 1; });
+  var shown = q.filter(function(i){ return S.qFilter === 'all' || i.cat === S.qFilter; });
+  var active = 0, silent = 0, unplugged = 0, seasonal = 0;
+  S.devices.forEach(function(d){ if (!d.archived) active++; var c = A.cls[d.serial]; if (c.silent) { silent++; if (c.cause === 'unplugged') unplugged++; if (c.cause === 'seasonal') seasonal++; } });
+  var openT = S.tickets.filter(isOpen), overdue = openT.filter(function(t){ return slaOf(t).state === 'overdue'; }).length;
+  var churn = Object.keys(A.health).filter(function(k){ return A.health[k].churnRisk; }).length;
+  var h = '<header class="head"><div><span class="eyebrow">' + esc(new Date().toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric', year:'numeric'})) + '</span>'
+    + '<h1>' + (q.length ? q.length + ' thing' + (q.length === 1 ? '' : 's') + ' need you' : 'Nothing needs you right now') + '</h1>'
+    + '<p class="lede">Ranked by vehicles affected and tickets at risk across every customer, not by which login you opened first.</p></div>'
+    + '<div class="field" style="flex:0 1 380px; min-width:240px"><label for="gsearch">Find a vehicle, serial, customer or ticket</label><input class="input" id="gsearch" type="search" autocomplete="off" placeholder="e.g. Truck 14, G9…, #1002" value="' + esc(S.search) + '"><div id="gresults"></div></div></header>';
+  h += '<section class="kpis" aria-label="Portfolio totals">'
+    + kpi('Active devices', active.toLocaleString('en-US'), S.customers.length + ' customers', false)
+    + kpi('Silent over 24 h', silent, unplugged + ' likely unplugged · ' + seasonal + ' parked', silent > 0)
+    + kpi('Open tickets', openT.length, overdue + ' past their deadline', overdue > 0)
+    + kpi('Customers at risk', churn, 'No admin login in 30+ days', churn > 0) + '</section>';
+  h += '<div class="split"><section class="panel main" aria-labelledby="qh"><div class="panel-h"><h2 id="qh">Attention queue</h2><div class="seg" role="group" aria-label="Filter queue">'
+    + [['all','All'],['devices','Devices'],['support','Support'],['customers','Customers']].map(function(f){ return '<button type="button" data-act="qf" data-v="' + f[0] + '" aria-pressed="' + (S.qFilter === f[0]) + '">' + f[1] + ' ' + (counts[f[0]] || 0) + '</button>'; }).join('')
+    + '</div></div>';
+  if (!shown.length) h += '<div class="empty">Nothing in this group.</div>';
+  else h += '<ol class="q">' + shown.map(function(i){
+    var tone = i.sev === 'Critical' ? 't-crit' : 't-warn';
+    return '<li><span class="chip sev ' + tone + '">' + esc(i.sev) + '</span><div class="body"><span class="kind">' + esc(i.kind) + '</span><strong>' + esc(custName(i.customerId)) + '</strong><span>' + esc(i.text) + '</span></div>'
+      + '<span class="imp">' + esc(i.impactLabel) + '</span><button type="button" class="btn" data-act="open-item" data-id="' + esc(i.id) + '">Open</button></li>';
+  }).join('') + '</ol>';
+  h += '</section><section class="panel side" aria-labelledby="hh"><div class="panel-h"><h2 id="hh">Customer health</h2><a href="#customers">All customers</a></div>' + healthTable(true) + '</section></div>';
+  S._queue = q;
+  return h;
+}
+
+function healthTable(compact){
+  var rows = S.customers.slice().sort(function(a, b){
+    var ha = A.health[a.id] || {}, hb = A.health[b.id] || {};
+    return ((ha.reportingPct == null ? 100 : ha.reportingPct) - (ha.churnRisk ? 30 : 0)) - ((hb.reportingPct == null ? 100 : hb.reportingPct) - (hb.churnRisk ? 30 : 0));
+  });
+  if (compact) rows = rows.slice(0, 6);
+  return '<div class="tbl-wrap"><table><thead><tr><th>Customer</th><th class="num">Units</th><th class="num">Reporting</th>' + (compact ? '' : '<th class="num">Maint. on schedule</th><th class="num">Open tickets</th><th class="num">Renewal</th>') + '<th class="num">Last admin login</th></tr></thead><tbody>'
+    + rows.map(function(c){
+      var h = A.health[c.id] || {};
+      var low = h.reportingPct != null && h.reportingPct < 95;
+      var ot = S.tickets.filter(function(t){ return t.customerId === c.id && isOpen(t); }).length;
+      return '<tr class="click" data-act="open-cust" data-id="' + esc(c.id) + '" tabindex="0"><td><strong>' + esc(c.name) + '</strong></td><td class="num">' + (h.active || 0) + '</td><td class="num' + (low ? ' bad' : '') + '">' + pct(h.reportingPct) + '</td>'
+        + (compact ? '' : '<td class="num">' + pct(h.pmPct) + '</td><td class="num">' + (ot || '–') + '</td><td class="num">' + (h.renewalDays == null ? '–' : h.renewalDays + ' d') + '</td>')
+        + '<td class="num' + (h.churnRisk ? ' bad' : '') + '">' + (h.loginDays == null ? '–' : h.loginDays === 0 ? 'today' : h.loginDays + ' d') + '</td></tr>';
+    }).join('') + '</tbody></table></div>';
+}
+
+function searchResults(){
+  var box = $('gresults'); if (!box) return;
+  var q = S.search.trim().toLowerCase();
+  if (q.length < 2) { box.innerHTML = ''; return; }
+  var res = [], num = q.replace(/^#/, '');
+  S.tickets.forEach(function(t){ if (String(t.number) === num || (t.subject || '').toLowerCase().indexOf(q) >= 0) res.push({act:'open-ticket', id:t._id, a:'#' + t.number + ' ' + t.subject, b:STATUS[t.status]}); });
+  S.customers.forEach(function(c){ if (c.name.toLowerCase().indexOf(q) >= 0) res.push({act:'open-cust', id:c.id, a:c.name, b:'Customer'}); });
+  for (var i = 0; i < S.devices.length && res.length < 8; i++) {
+    var d = S.devices[i];
+    if (d.serial.toLowerCase().indexOf(q) >= 0 || (d.vehicle || '').toLowerCase().indexOf(q) >= 0) res.push({act:'open-dev', id:d.serial, a:d.vehicle + ' · ' + custName(d.customerId), b:d.serial});
+  }
+  box.innerHTML = res.length ? '<ul class="results" style="margin-top:6px">' + res.slice(0, 8).map(function(r){ return '<li><button type="button" data-act="' + r.act + '" data-id="' + esc(r.id) + '"><span>' + esc(r.a) + '</span><span class="sub mono">' + esc(r.b) + '</span></button></li>'; }).join('') + '</ul>' : '<p class="sub" style="margin:6px 0 0">No matches.</p>';
+}
+
+/* Devices */
+function filteredDevices(){
+  var t = S.dev.text.trim().toLowerCase();
+  return S.devices.filter(function(d){
+    var c = A.cls[d.serial];
+    if (!c.silent) return false;
+    if (S.dev.cause && c.cause !== S.dev.cause) return false;
+    if (S.dev.customerId && d.customerId !== S.dev.customerId) return false;
+    if (t && d.serial.toLowerCase().indexOf(t) < 0 && (d.vehicle || '').toLowerCase().indexOf(t) < 0) return false;
+    return true;
+  }).sort(function(a, b){ return A.cls[b.serial].silentMs - A.cls[a.serial].silentMs; });
+}
+function vDevices(){
+  var counts = {};
+  S.devices.forEach(function(d){ var c = A.cls[d.serial]; if (c.silent && (!S.dev.customerId || d.customerId === S.dev.customerId)) counts[c.cause] = (counts[c.cause] || 0) + 1; });
+  var total = Object.keys(counts).reduce(function(s, k){ return s + counts[k]; }, 0);
+  var h = '<header class="head"><div><span class="eyebrow">Device health · ' + (S.dev.customerId ? esc(custName(S.dev.customerId)) : 'all customers') + '</span><h1>' + total + ' device' + (total === 1 ? '' : 's') + ' went quiet. Here’s the likely reason.</h1>'
+    + '<p class="lede">Pitwall reads what each device did right before it went silent, so you know whether to call the driver, the installer or nobody.</p></div></header>';
+  h += '<section class="tiles" aria-label="Likely causes">' + E.CAUSE_ORDER.map(function(k){
+    var cz = E.CAUSES[k];
+    return '<button type="button" class="tile ' + toneOf(k) + '" data-act="cause" data-v="' + k + '" aria-pressed="' + (S.dev.cause === k) + '"><span class="c">' + (counts[k] || 0) + '</span><span class="lb">' + esc(cz.label) + '</span><span class="h">' + esc(cz.hint) + '</span></button>';
+  }).join('') + '</section>';
+  h += '<div class="row"><div class="field" style="flex:1 1 220px"><label for="devCust">Customer</label><select class="input" id="devCust" data-live><option value="">All customers</option>' + S.customers.map(function(c){ return '<option value="' + esc(c.id) + '"' + (S.dev.customerId === c.id ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') + '</select></div>'
+    + '<div class="field" style="flex:1 1 220px"><label for="devText">Vehicle or serial</label><input class="input" id="devText" type="search" value="' + esc(S.dev.text) + '" autocomplete="off"></div></div>';
+  h += '<div class="split"><section class="panel main" aria-labelledby="dth"><div class="panel-h"><h2 id="dth">' + (S.dev.cause ? esc(E.CAUSES[S.dev.cause].label) : 'All silent devices') + '</h2><div class="row"><button type="button" class="btn" data-act="dev-export">Export CSV</button></div></div><div id="devTable">' + devTable() + '</div></section>';
+  h += '<aside class="panel side" aria-label="Device detail" id="devDetail">' + devDetail() + '</aside></div>';
+  var n = Object.keys(S.dev.sel).length;
+  if (n) h += '<div class="bar" role="region" aria-label="Selection"><span>' + n + ' selected</span><div class="row"><button type="button" class="btn sm" data-act="bulk-ticket">Open ticket</button><button type="button" class="btn sm" data-act="bulk-seasonal">Mark parked / seasonal</button><button type="button" class="btn sm" data-act="bulk-clear">Clear</button></div></div>';
+  return h;
+}
+function devTable(){
+  var list = filteredDevices();
+  if (!list.length) return '<div class="empty">No silent devices match these filters.</div>';
+  var all = list.every(function(d){ return S.dev.sel[d.serial]; });
+  var shown = list.slice(0, 300);
+  return '<div class="tbl-wrap"><table><thead><tr><th><input type="checkbox" id="selAll" aria-label="Select all shown"' + (all ? ' checked' : '') + '></th><th>Vehicle</th><th>Customer</th><th class="num">Silent for</th><th>Last signal</th><th>Likely cause</th><th>Tickets</th></tr></thead><tbody>'
+    + shown.map(function(d){
+      var c = A.cls[d.serial], tk = openTicketsForSerial(d.serial).filter(isOpen);
+      return '<tr class="click' + (S.dev.open === d.serial ? ' sel' : '') + '" data-act="open-dev" data-id="' + esc(d.serial) + '"><td><input type="checkbox" data-sel="' + esc(d.serial) + '" aria-label="Select ' + esc(d.vehicle) + '"' + (S.dev.sel[d.serial] ? ' checked' : '') + '></td>'
+        + '<td><strong>' + esc(d.vehicle) + '</strong>' + cngTag(d) + '<div class="sub mono">' + esc(d.serial) + '</div></td><td>' + esc(custName(d.customerId)) + '</td><td class="num">' + esc(E.fmtAgo(c.silentMs)) + '</td>'
+        + '<td>' + esc(SIGNAL_LABEL[d.lastSignal || ''] || d.lastSignal) + '</td><td><span class="chip ' + toneOf(c.cause) + '">' + esc(E.CAUSES[c.cause].label) + (c.batch ? ' · batch' : '') + '</span></td><td class="sub mono">' + (tk.length ? tk.map(function(t){ return '#' + t.number; }).join(' ') : '') + '</td></tr>';
+    }).join('') + '</tbody></table></div>' + (list.length > 300 ? '<p class="sub" style="padding:0 20px 14px">Showing the 300 longest-silent of ' + list.length + '. Narrow by customer or cause to see the rest.</p>' : '');
+}
+function devDetail(){
+  var d = S.dev.open && deviceBySerial(S.dev.open);
+  if (!d) return '<div class="empty"><h2>Pick a device</h2><span>Select a row to see what happened before it went quiet and what to do next.</span></div>';
+  var c = A.cls[d.serial], flag = S.flags[d.serial];
+  var tks = openTicketsForSerial(d.serial);
+  var h = '<div class="panel-b"><div><span class="eyebrow">' + esc(custName(d.customerId)) + ' · ' + esc(d.serial) + '</span><h2 style="font-size:20px">' + esc(d.vehicle) + cngTag(d) + '</h2></div>'
+    + '<div class="row"><span class="chip ' + toneOf(c.cause) + '">' + esc(c.cause ? E.CAUSES[c.cause].label : 'Reporting') + '</span>' + (c.batch ? '<span class="chip t-crit">' + c.batchSize + ' units together</span>' : '') + (flag && flag.seasonal ? '<span class="chip t-muted">Marked parked</span>' : '') + '</div>'
+    + '<dl class="facts"><dt>Last heard</dt><dd>' + esc(dateTimeLabel(E.time(d.lastCommAt))) + (c.silent ? ' (' + esc(E.fmtAgo(c.silentMs)) + ' ago)' : '') + '</dd><dt>Last signal</dt><dd>' + esc(SIGNAL_LABEL[d.lastSignal || ''] || d.lastSignal) + '</dd>'
+    + '<dt>Last trip</dt><dd>' + esc(d.lastTripAt ? dateTimeLabel(E.time(d.lastTripAt)) : 'Never') + '</dd><dt>Activated</dt><dd>' + esc(dateLabel(E.time(d.activatedAt))) + '</dd>'
+    + (d.isCng ? '<dt>Fuel</dt><dd>CNG (compressed natural gas)</dd>' : '')
+    + (d.isCng && d.disconnects14 != null ? '<dt>Battery disconnects</dt><dd>' + d.disconnects14 + ' in the last 14 days' + (d.routine ? ' (switched off most nights)' : '') + '</dd>' : '') + '</dl>'
+    + (d.isCng ? '<div class="note cng-note"><strong>CNG vehicle: may have a battery disconnect</strong><span>CNG vehicles often have a master battery switch. When a driver turns it off, the tracker loses power and goes silent until the switch is back on, so silence while parked can be normal.</span></div>' : '')
+    + '<div class="note"><strong>Suggested next step</strong><span>' + esc(E.nextStep(c)) + '</span></div>';
+  h += '<div class="row"><button type="button" class="btn primary" data-act="ticket-dev">Open ticket</button><button type="button" class="btn" data-act="toggle-seasonal">' + (flag && flag.seasonal ? 'Unmark parked' : 'Mark parked') + '</button></div>';
+  if (tks.length) h += '<div style="display:flex; flex-direction:column; gap:8px"><h3>Tickets</h3>' + tks.map(function(t){ return '<button type="button" class="btn" style="justify-content:space-between; width:100%" data-act="open-ticket" data-id="' + esc(t._id) + '"><span>#' + t.number + ' ' + esc(t.subject) + '</span>' + statusChip(t.status) + '</button>'; }).join('') + '</div>';
+  return h + '</div>';
+}
+
+/* Support */
+function filteredTickets(){
+  var f = S.sup, txt = f.text.trim().toLowerCase().replace(/^#/, '');
+  return S.tickets.filter(function(t){
+    if (f.status === 'open' && !isOpen(t)) return false;
+    if (f.status === 'unassigned' && (!isOpen(t) || t.assignee)) return false;
+    if (f.status === 'overdue' && slaOf(t).state !== 'overdue') return false;
+    if (f.status === 'closed' && isOpen(t)) return false;
+    if (f.mine && t.assignee !== S.uid) return false;
+    if (f.priority && t.priority !== f.priority) return false;
+    if (f.customerId && t.customerId !== f.customerId) return false;
+    if (txt && String(t.number) !== txt && (t.subject || '').toLowerCase().indexOf(txt) < 0 && (t.contact || '').toLowerCase().indexOf(txt) < 0) return false;
+    return true;
+  }).sort(function(a, b){
+    var oa = isOpen(a), ob = isOpen(b);
+    if (oa && ob) { var sa = slaOf(a), sb = slaOf(b); var la = sa.state === 'paused' ? 1e15 : sa.left, lb = sb.state === 'paused' ? 1e15 : sb.left; return la - lb; }
+    if (oa !== ob) return oa ? -1 : 1;
+    return (E.time(b.updatedAt) || 0) - (E.time(a.updatedAt) || 0);
+  });
+}
+function vSupport(){
+  if (S.sup.creating) return vNewTicket();
+  if (S.sup.open) { var t = ticketById(S.sup.open); if (t) return vTicket(t); }
+  if (!S.ready.tickets) return '<div class="empty"><h1>Loading tickets…</h1></div>';
+  var open = S.tickets.filter(isOpen);
+  var overdue = open.filter(function(t){ return slaOf(t).state === 'overdue'; }).length;
+  var unassigned = open.filter(function(t){ return !t.assignee; }).length;
+  var waiting = open.filter(function(t){ return t.status === 'waiting'; }).length;
+  var mine = open.filter(function(t){ return S.uid && t.assignee === S.uid; }).length;
+  var h = '<header class="head"><div><span class="eyebrow">Support</span><h1>' + open.length + ' open ticket' + (open.length === 1 ? '' : 's') + '</h1><p class="lede">Customer requests in one queue, sorted by whose deadline is closest. Everyone on your team sees the same list, live.</p></div>'
+    + '<div class="row"><button type="button" class="btn" data-act="exp-tickets">Export CSV</button><button type="button" class="btn primary" data-act="new-ticket">New ticket</button></div></header>';
+  h += '<section class="kpis">' + kpi('Past deadline', overdue, 'Response or resolution late', overdue > 0) + kpi('Unassigned', unassigned, 'Open tickets with no owner', unassigned > 0) + kpi('Assigned to you', mine, 'Open', false) + kpi('Waiting on customer', waiting, 'Deadline paused', false) + '</section>';
+  h += '<div class="row" style="align-items:flex-end"><div class="seg" role="group" aria-label="Show">' + [['open','Open'],['overdue','Past deadline'],['unassigned','Unassigned'],['closed','Resolved & closed'],['all','All']].map(function(s){ return '<button type="button" data-act="sf" data-v="' + s[0] + '" aria-pressed="' + (S.sup.status === s[0]) + '">' + s[1] + '</button>'; }).join('')
+    + '<button type="button" data-act="smine" aria-pressed="' + S.sup.mine + '">Mine</button></div></div>';
+  h += '<div class="row"><div class="field" style="flex:1 1 180px"><label for="supPrio">Priority</label><select class="input" id="supPrio" data-live><option value="">Any</option>' + PRIORITIES.map(function(p){ return '<option' + (S.sup.priority === p ? ' selected' : '') + '>' + p + '</option>'; }).join('') + '</select></div>'
+    + '<div class="field" style="flex:1 1 220px"><label for="supCust">Customer</label><select class="input" id="supCust" data-live><option value="">All customers</option>' + S.customers.map(function(c){ return '<option value="' + esc(c.id) + '"' + (S.sup.customerId === c.id ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') + '</select></div>'
+    + '<div class="field" style="flex:2 1 240px"><label for="supText">Search</label><input class="input" id="supText" type="search" autocomplete="off" placeholder="Ticket number, subject or contact" value="' + esc(S.sup.text) + '"></div></div>';
+  h += '<section class="panel" id="supTable">' + ticketTable() + '</section>';
+  h += '<p class="sub" style="margin:0">Deadlines from ticket creation: ' + PRIORITIES.map(function(p){ return p + ' respond ' + SLA[p].resp + ' h, resolve ' + (SLA[p].res >= 24 ? SLA[p].res / 24 + ' d' : SLA[p].res + ' h'); }).join(' · ') + '. Waiting on customer pauses the clock.</p>';
+  return h;
+}
+function ticketTable(){
+  var list = filteredTickets();
+  if (!list.length) return '<div class="empty"><span>No tickets match.</span><button type="button" class="btn" data-act="new-ticket">New ticket</button></div>';
+  return '<div class="tbl-wrap"><table><thead><tr><th class="num">#</th><th>Subject</th><th>Priority</th><th>Status</th><th>Assigned</th><th>Deadline</th><th>Updated</th></tr></thead><tbody>'
+    + list.map(function(t){
+      return '<tr class="click" data-act="open-ticket" data-id="' + esc(t._id) + '" tabindex="0"><td class="num">' + t.number + '</td><td style="min-width:240px"><strong>' + esc(t.subject) + '</strong><div class="sub">' + esc(custName(t.customerId)) + ' · ' + esc(t.category) + (t.serials && t.serials.length ? ' · ' + t.serials.length + ' vehicle' + (t.serials.length === 1 ? '' : 's') : '') + '</div></td>'
+        + '<td>' + prioChip(t.priority) + '</td><td>' + statusChip(t.status) + '</td><td>' + (t.assignee ? who(t.assignee) : '<span class="sub">Unassigned</span>') + '</td><td>' + slaChip(t) + '</td><td class="sub">' + esc(ago(E.time(t.updatedAt))) + '</td></tr>';
+    }).join('') + '</tbody></table></div>';
+}
+function eventText(m){
+  switch (m.event) {
+    case 'created': return 'Ticket opened by ' + who(m.by);
+    case 'status': return who(m.by) + ' set status to ' + esc(STATUS[m.value] || m.value);
+    case 'priority': return who(m.by) + ' set priority to ' + esc(m.value);
+    case 'category': return who(m.by) + ' set category to ' + esc(m.value);
+    case 'customer': return who(m.by) + ' moved this ticket to ' + esc(custName(m.value));
+    case 'assigned': return m.value ? who(m.by) + ' assigned this to ' + who(m.value) : who(m.by) + ' unassigned this ticket';
+    default: return esc(m.text || 'Updated');
+  }
+}
+function vTicket(t){
+  var s = slaOf(t);
+  var h = '<div><button type="button" class="btn ghost" data-act="tickets-back" style="padding-left:0">← All tickets</button></div>';
+  h += '<header class="head"><div><span class="eyebrow">Ticket #' + t.number + ' · ' + esc(custName(t.customerId)) + '</span><h1>' + esc(t.subject) + '</h1><div class="row">' + statusChip(t.status) + prioChip(t.priority) + slaChip(t) + '</div></div></header>';
+  h += '<div class="split"><section class="main" style="display:flex; flex-direction:column; gap:14px" aria-label="Conversation"><div class="thread">';
+  if (!S.sup.msgs.length) h += '<p class="sub">Loading conversation…</p>';
+  S.sup.msgs.forEach(function(m){
+    var at = esc(dateTimeLabel(E.time(m.at)));
+    if (m.kind === 'event') { h += '<div class="msg event">' + eventText(m) + ' · ' + at + '</div>'; return; }
+    var label = m.kind === 'request' ? 'From ' + esc(m.from || 'customer') + (m.by ? ' · logged by ' + who(m.by) : '') : m.kind === 'reply' ? who(m.by) + ' replied to customer' : who(m.by) + ' · internal note';
+    h += '<article class="msg ' + esc(m.kind) + '"><div class="meta"><span>' + label + '</span><span>' + at + '</span></div><div class="text">' + esc(m.body) + '</div></article>';
+  });
+  h += '</div>';
+  h += '<form id="msgForm" class="panel" novalidate><div class="panel-h"><div class="seg" role="group" aria-label="Message type">'
+    + '<button type="button" data-act="tab" data-v="reply" aria-pressed="' + (S.sup.tab === 'reply') + '">Reply to customer</button><button type="button" data-act="tab" data-v="note" aria-pressed="' + (S.sup.tab === 'note') + '">Internal note</button><button type="button" data-act="tab" data-v="request" aria-pressed="' + (S.sup.tab === 'request') + '">Log customer message</button></div></div>'
+    + '<div class="panel-b"><div class="field"><label for="msgBody">' + (S.sup.tab === 'reply' ? 'Your reply' : S.sup.tab === 'note' ? 'Note for your team (the customer never sees it)' : 'What the customer said') + '</label><textarea class="input" id="msgBody" rows="4"></textarea></div>'
+    + (S.sup.tab === 'reply' ? '<p class="sub" style="margin:0">Pitwall doesn’t send email. Your reply is logged here and copied so you can paste it into your email or text to the customer.</p>' : '')
+    + '<div class="row"><div class="field" style="flex:0 1 240px"><label for="msgStatus">Then set status</label><select class="input" id="msgStatus"><option value="">Keep ' + esc(STATUS[t.status]) + '</option>' + Object.keys(STATUS).filter(function(k){ return k !== t.status; }).map(function(k){ return '<option value="' + k + '">' + esc(STATUS[k]) + '</option>'; }).join('') + '</select></div>'
+    + '<button type="submit" class="btn primary" style="align-self:flex-end">' + (S.sup.tab === 'reply' ? 'Log reply & copy' : S.sup.tab === 'note' ? 'Add note' : 'Log message') + '</button></div></div></form>';
+  h += '</section><aside class="panel side" aria-label="Ticket details"><div class="panel-b">';
+  h += '<div class="field"><label for="tStatus">Status</label><select class="input" id="tStatus" data-live data-tf="status">' + Object.keys(STATUS).map(function(k){ return '<option value="' + k + '"' + (t.status === k ? ' selected' : '') + '>' + esc(STATUS[k]) + '</option>'; }).join('') + '</select></div>';
+  h += '<div class="field"><label for="tPriority">Priority</label><select class="input" id="tPriority" data-live data-tf="priority">' + PRIORITIES.map(function(p){ return '<option' + (t.priority === p ? ' selected' : '') + '>' + p + '</option>'; }).join('') + '</select></div>';
+  h += '<div class="field"><label for="tAssignQ">Assigned to</label><div class="row"><strong id="tAssignee">' + (t.assignee ? who(t.assignee) : 'Unassigned') + '</strong>' + (S.uid && t.assignee !== S.uid ? '<button type="button" class="btn sm" data-act="assign" data-id="' + esc(S.uid) + '">Assign to me</button>' : '') + (t.assignee ? '<button type="button" class="btn sm" data-act="assign" data-id="">Unassign</button>' : '') + '</div>'
+    + (S.user ? '<input class="input" id="tAssignQ" type="search" autocomplete="off" placeholder="Search your team"><div id="assignRes"></div>' : '') + '</div>';
+  h += '<div class="field"><label for="tCategory">Category</label><select class="input" id="tCategory" data-live data-tf="category">' + CATEGORIES.map(function(c){ return '<option' + (t.category === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select></div>';
+  h += '<div class="field"><label for="tCustomer">Customer</label><select class="input" id="tCustomer" data-live data-tf="customerId">' + S.customers.map(function(c){ return '<option value="' + esc(c.id) + '"' + (t.customerId === c.id ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') + '</select></div>';
+  h += '<dl class="facts"><dt>Contact</dt><dd>' + esc(t.contact || '–') + '</dd><dt>Opened</dt><dd>' + esc(dateTimeLabel(E.time(t.createdAt))) + ' by ' + who(t.createdBy) + '</dd><dt>Source</dt><dd>' + esc({brief:'Customer brief', device:'Device health', staff:'Logged by staff'}[t.source] || t.source) + '</dd>'
+    + '<dt>First response</dt><dd>' + (t.firstResponseAt ? esc(dateTimeLabel(E.time(t.firstResponseAt))) : (s.what === 'First response' ? 'Due ' + esc(dateTimeLabel(s.due)) : '–')) + '</dd>' + (t.resolvedAt ? '<dt>Resolved</dt><dd>' + esc(dateTimeLabel(E.time(t.resolvedAt))) + '</dd>' : '') + '</dl>';
+  if (t.serials && t.serials.length) {
+    h += '<div style="display:flex; flex-direction:column; gap:6px"><h3>Vehicles</h3><div class="row">' + t.serials.slice(0, 30).map(function(sr, i){ var d = deviceBySerial(sr); return '<button type="button" class="btn sm" data-act="open-dev" data-id="' + esc(sr) + '">' + esc(d ? d.vehicle : (t.vehicles || [])[i] || sr) + '</button>'; }).join('') + (t.serials.length > 30 ? '<span class="sub">+' + (t.serials.length - 30) + ' more</span>' : '') + '</div>'
+      + '</div>';
+  }
+  h += '</div></aside></div>';
+  return h;
+}
+function vNewTicket(){
+  var p = S.sup.creating;
+  var h = '<div><button type="button" class="btn ghost" data-act="tickets-back" style="padding-left:0">← All tickets</button></div>';
+  h += '<header class="head"><div><span class="eyebrow">Support</span><h1>New ticket</h1><p class="lede">Log a call, email or request from a customer. It gets the next ticket number and a deadline based on priority.</p></div></header>';
+  h += '<form id="newTicket" class="panel" novalidate><div class="panel-b" style="max-width:760px">'
+    + '<div class="field"><label for="ntSubject">Subject</label><input class="input" id="ntSubject" autocomplete="off" value="' + esc(p.subject || '') + '" placeholder="e.g. Six buses not showing location"></div>'
+    + '<div class="row" style="align-items:flex-start"><div class="field" style="flex:1 1 220px"><label for="ntCustomer">Customer</label><select class="input" id="ntCustomer"><option value="">Choose a customer</option>' + S.customers.map(function(c){ return '<option value="' + esc(c.id) + '"' + (p.customerId === c.id ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('') + '</select></div>'
+    + '<div class="field" style="flex:1 1 220px"><label for="ntContact">Customer contact</label><input class="input" id="ntContact" autocomplete="off" value="' + esc(p.contact || '') + '" placeholder="Name, phone or email"></div></div>'
+    + '<div class="row" style="align-items:flex-start"><div class="field" style="flex:1 1 160px"><label for="ntCategory">Category</label><select class="input" id="ntCategory">' + CATEGORIES.map(function(c){ return '<option' + ((p.category || 'Device issue') === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select></div>'
+    + '<div class="field" style="flex:1 1 160px"><label for="ntPriority">Priority</label><select class="input" id="ntPriority">' + PRIORITIES.map(function(x){ return '<option' + ((p.priority || 'Normal') === x ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></div>'
+    + '<div class="field" style="flex:1 1 160px"><label for="ntAssign">Assign</label><select class="input" id="ntAssign"><option value="">Unassigned</option>' + (S.uid ? '<option value="me">Me</option>' : '') + '</select></div></div>'
+    + (p.serials && p.serials.length ? '<div class="note"><strong>' + p.serials.length + ' vehicle' + (p.serials.length === 1 ? '' : 's') + ' linked</strong><span>' + esc(p.serials.slice(0, 12).map(function(s){ var d = deviceBySerial(s); return d ? d.vehicle : s; }).join(', ')) + (p.serials.length > 12 ? ' and ' + (p.serials.length - 12) + ' more' : '') + '</span></div>' : '')
+    + '<div class="field"><label for="ntBody">What the customer reported</label><textarea class="input" id="ntBody" rows="5">' + esc(p.body || '') + '</textarea></div>'
+    + '<div class="row"><button type="submit" class="btn primary">Create ticket</button><button type="button" class="btn" data-act="tickets-back">Cancel</button></div></div></form>';
+  return h;
+}
+function assignResults(list){
+  var box = $('assignRes'); if (!box) return;
+  box.innerHTML = list.length ? '<ul class="results" style="margin-top:6px">' + list.map(function(p){ return '<li><button type="button" data-act="assign" data-id="' + esc(p.id) + '"><span class="pname"></span><span class="sub">' + (p.isMe ? 'You' : '') + '</span></button></li>'; }).join('') + '</ul>' : '<p class="sub" style="margin:6px 0 0">No teammates found.</p>';
+  box.querySelectorAll('.pname').forEach(function(el, i){ el.textContent = list[i].name || 'Someone'; });
+}
+
+
+/* Customers */
+function vCustomers(){
+  var h = '<header class="head"><div><span class="eyebrow">Customers</span><h1>Health, adoption and support</h1><p class="lede">Click a customer to see their open tickets, log a new one, or open the brief their fleet manager sees.</p></div></header>';
+  h += '<div class="split"><section class="panel main">' + healthTable(false) + '</section><aside class="panel side">' + custDetail() + '</aside></div>';
+  return h;
+}
+function custDetail(){
+  var c = S.cust.open && A.custById[S.cust.open];
+  if (!c) return '<div class="empty"><h2>Pick a customer</h2></div>';
+  var h = A.health[c.id] || {};
+  var tks = S.tickets.filter(function(t){ return t.customerId === c.id; }).sort(function(a, b){ return (isOpen(b) - isOpen(a)) || ((E.time(b.updatedAt) || 0) - (E.time(a.updatedAt) || 0)); }).slice(0, 8);
+  return '<div class="panel-b"><div><span class="eyebrow">' + esc(c.database || c.id) + '</span><h2 style="font-size:20px">' + esc(c.name) + '</h2></div>'
+    + '<dl class="facts"><dt>Active units</dt><dd>' + (h.active || 0) + '</dd><dt>Reporting</dt><dd>' + pct(h.reportingPct) + '</dd><dt>Maintenance on schedule</dt><dd>' + pct(h.pmPct) + '</dd><dt>Last admin login</dt><dd>' + (h.loginDays == null ? '–' : h.loginDays + ' days ago') + '</dd><dt>Renewal</dt><dd>' + esc(dateLabel(E.time(c.renewalAt))) + '</dd></dl>'
+    + '<div class="row"><button type="button" class="btn primary" data-act="ticket-cust" data-id="' + esc(c.id) + '">New ticket</button><a class="btn" href="#fleet" data-act="brief" data-id="' + esc(c.id) + '">Open customer brief</a></div>'
+    + '<h3>Tickets</h3>' + (tks.length ? tks.map(function(t){ return '<button type="button" class="btn" style="justify-content:space-between; width:100%; white-space:normal; text-align:left" data-act="open-ticket" data-id="' + esc(t._id) + '"><span>#' + t.number + ' ' + esc(t.subject) + '</span>' + statusChip(t.status) + '</button>'; }).join('') : '<p class="sub" style="margin:0">No tickets yet.</p>') + '</div>';
+}
+
+/* Customer brief (what the fleet manager sees) */
+function vFleet(){
+  var cid = ROLE === 'customer' ? MYCID : (S.fleet.customerId || (S.customers[0] && S.customers[0].id));
+  var c = A.custById[cid]; if (!c) return '<div class="empty">No customers yet.</div>';
+  var hl = A.health[cid] || {};
+  var mine = S.devices.filter(function(d){ return d.customerId === cid && !d.archived; });
+  var silent = mine.filter(function(d){ return A.cls[d.serial].silent; });
+  var groups = {}; silent.forEach(function(d){ var cl = A.cls[d.serial]; var k = cl.cause + (cl.batch ? '~b' : ''); (groups[k] = groups[k] || {cause:cl.cause, batch:cl.batch, list:[]}).list.push(d); });
+  var overdue = mine.filter(function(d){ return d.milesToService != null && d.milesToService < 0; }).sort(function(a, b){ return a.milesToService - b.milesToService; });
+  var h = '<header class="head"><div><span class="eyebrow">' + (ROLE === 'customer' ? 'Your fleet' : 'Customer brief · preview of what ' + esc(c.name) + ' sees') + '</span><h1>' + esc(c.name) + ': your fleet this week</h1><p class="lede">' + (ROLE === 'customer' ? 'What needs your attention, and a quick way to ask your reseller for help.' : 'A short, phone-friendly summary for the fleet manager. Their answers and help requests open tickets in Support.') + '</p></div>'
+    + (ROLE === 'customer' ? '</header>' : '<div class="field" style="flex:0 1 280px"><label for="fleetCust">Customer</label><select class="input" id="fleetCust" data-live>' + S.customers.map(function(x){ return '<option value="' + esc(x.id) + '"' + (x.id === cid ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('') + '</select></div></header>');
+  h += '<div style="max-width:560px; display:flex; flex-direction:column; gap:14px">';
+  h += '<section class="kpis">' + kpi('Trackers reporting', pct(hl.reportingPct), (hl.active || 0) + ' vehicles', hl.reportingPct != null && hl.reportingPct < 95) + kpi('Maintenance on schedule', pct(hl.pmPct), overdue.length + ' overdue', overdue.length > 0) + '</section>';
+  Object.keys(groups).forEach(function(k){
+    var g = groups[k], n = g.list.length, cz = E.CAUSES[g.cause];
+    var title = g.batch ? n + ' trackers went dark at the same time' : n + (n === 1 ? ' tracker' : ' trackers') + ': ' + cz.label.toLowerCase().replace('cng', 'CNG');
+    var tk = S.tickets.filter(function(t){ return t.briefKey === cid + '~' + k && t.briefPeriod === period(); })[0];
+    h += '<section class="panel"><div class="panel-b"><span class="chip ' + toneOf(g.cause) + '" style="align-self:flex-start">' + esc(cz.label) + '</span><h2>' + esc(title) + '</h2><p class="lede" style="margin:0">' + esc(fleetCopy(g)) + '</p>'
+      + '<p class="sub" style="margin:0">' + esc(g.list.slice(0, 6).map(function(d){ return d.vehicle + (d.isCng ? ' (CNG)' : ''); }).join(', ')) + (n > 6 ? ' and ' + (n - 6) + ' more' : '') + '</p>'
+      + (tk ? '<div class="row"><span class="chip t-ok">Sent to your reseller</span><button type="button" class="btn sm ghost" data-act="open-ticket" data-id="' + esc(tk._id) + '">Ticket #' + tk.number + '</button></div>' : '<div class="row">' + replyButtons(g, k, cid) + '</div>') + '</div></section>';
+  });
+  if (!silent.length) h += '<section class="panel"><div class="panel-b"><h2>All trackers reporting</h2><p class="lede" style="margin:0">Nothing needs your attention.</p></div></section>';
+  if (overdue.length) h += '<section class="panel"><div class="panel-h"><h2>Maintenance overdue</h2><span class="sub">' + overdue.length + ' vehicles</span></div><div class="tbl-wrap"><table><tbody>' + overdue.slice(0, 8).map(function(d){ return '<tr><td><strong>' + esc(d.vehicle) + '</strong></td><td class="num bad">' + Math.abs(d.milesToService).toLocaleString('en-US') + ' mi overdue</td></tr>'; }).join('') + '</tbody></table></div></section>';
+  h += '<form class="panel" id="helpForm" novalidate><div class="panel-h"><h2>Need help?</h2></div><div class="panel-b"><div class="field"><label for="helpSubject">What do you need help with?</label><input class="input" id="helpSubject" autocomplete="off" placeholder="e.g. Add two new drivers"></div>'
+    + '<div class="field"><label for="helpBody">Details</label><textarea class="input" id="helpBody" rows="3"></textarea></div><div class="field"><label for="helpContact">Your name and best way to reach you</label><input class="input" id="helpContact" autocomplete="off"></div>'
+    + '<div class="row"><button type="submit" class="btn primary">Send to your reseller</button></div></div></form>';
+  return h + '</div>';
+}
+function fleetCopy(g){
+  switch (g.cause) {
+    case 'unplugged': return g.batch ? 'They lost power within hours of each other, which usually means shop work. Let your reseller know so they can guide the re-plug.' : 'Power to these trackers was removed while the vehicle was off. If someone unplugged them, plug them back in; stored trips will upload.';
+    case 'disconnect': return 'These are CNG vehicles and may have a battery disconnect switch. Their trackers went quiet right after a normal shutdown, which usually means the switch was turned off. Nothing is broken: once the switch is back on, the tracker reconnects and uploads what it stored. Tell your reseller if any of them should be running.';
+    case 'voltage': return 'These trackers had an unstable power supply. Your reseller can send an installer to check the wiring.';
+    case 'gps': return 'These vehicles are running but not reporting location. Usually the tracker’s mounting spot is blocking the signal.';
+    case 'seasonal': return 'Parked for weeks with a normal shutdown. Tell your reseller if they’re out for the season.';
+    case 'notinstalled': return 'These trackers were activated but haven’t recorded a trip yet.';
+    default: return 'We haven’t heard from these vehicles in over a day. Are they in use?';
+  }
+}
+function replyButtons(g, k, cid){
+  var opts = g.cause === 'unplugged' ? ['Yes, shop work', 'Not sure, please help'] : g.cause === 'disconnect' ? ['Parked, switch is off', 'Should be running'] : g.cause === 'seasonal' ? ['Parked for the season', 'Should be running'] : g.cause === 'notinstalled' ? ['Please schedule the install', 'Already installed'] : ['Please send someone', 'We’ll check'];
+  return opts.map(function(o, i){ return '<button type="button" class="btn' + (i === 0 ? ' primary' : '') + '" data-act="reply" data-k="' + esc(k) + '" data-cid="' + esc(cid) + '" data-v="' + esc(o) + '">' + esc(o) + '</button>'; }).join('');
+}
+
+/* Data */
+function vData(){
+  var h = '<header class="head"><div><span class="eyebrow">Data</span><h1>Bring in your real devices and customers</h1><p class="lede">Sync live from your MyGeotab databases, or import a device CSV.</p></div></header>';
+  h += geoPanel() + backupPanel();
+  var src = S.meta ? (S.meta.source === 'example' ? 'Example dataset' : S.meta.source === 'empty' ? 'No data yet' : S.meta.source === 'mygeotab' ? 'Live from MyGeotab' : 'Imported' + (S.meta.filename ? ' from ' + S.meta.filename : '')) : 'No data yet';
+  h += '<section class="kpis">' + kpi('Source', src, 'As of ' + dateTimeLabel(E.time(S.meta && S.meta.asOf)), false) + kpi('Devices', S.devices.length.toLocaleString('en-US'), S.deviceDocIds.length + ' stored chunks', false) + kpi('Customers', S.customers.length, 'Created from imports or CSV', false) + '</section>';
+  h += '<section class="panel"><div class="panel-h"><h2>Import devices</h2><button type="button" class="btn" data-act="tpl-dev">Download template</button></div><div class="panel-b">';
+  if (!S.canEdit) h += '<p class="sub" style="margin:0">Only people who can edit this page can import data.</p>';
+  else if (!S.imp) h += '<div class="drop" id="drop"><strong>Drop a CSV here</strong><span class="sub">Required columns: serial, customer. Recognized: vehicle, lastCommAt, lastSignal, activatedAt, lastTripAt, archived, milesToService.</span><label class="btn" for="impFile">Choose file</label><input id="impFile" type="file" accept=".csv,text/csv" class="sr"></div>';
+  else h += importPreview();
+  h += '<details><summary>What each column means</summary><dl class="facts" style="margin-top:10px"><dt>lastCommAt</dt><dd>Last time the device communicated (ISO date/time)</dd><dt>lastSignal</dt><dd>power_removed, low_voltage, reboot_loop, ignition_no_gps, normal_shutdown, normal, or blank. The add-in fills this in.</dd><dt>activatedAt</dt><dd>When the device was activated</dd><dt>lastTripAt</dt><dd>End of the most recent trip; blank means never</dd><dt>archived</dt><dd>true for retired vehicles</dd><dt>milesToService</dt><dd>Miles until the next service; negative means overdue</dd></dl></details></div></section>';
+  h += '<section class="panel"><div class="panel-h"><h2>Import customers</h2><button type="button" class="btn" data-act="tpl-cust">Download template</button></div><div class="panel-b"><p class="sub" style="margin:0">Optional. Adds last admin login and renewal dates for churn risk. Columns: name, database, lastAdminLoginAt, renewalAt.</p>' + (S.canEdit ? '<div class="row"><label class="btn" for="custFile">Choose customer CSV</label><input id="custFile" type="file" accept=".csv,text/csv" class="sr"></div>' : '') + '</div></section>';
+  var exCust = S.customers.filter(function(c){ return c.example; }).length, exTk = S.tickets.filter(function(t){ return t.example; }).length;
+  if (S.canEdit && (exCust || exTk)) {
+    h += '<section class="panel"><div class="panel-h"><h2>Example data</h2></div><div class="panel-b"><p class="sub" style="margin:0">Removes the fictional customers, their devices and the example tickets. Your imported data and your own tickets stay.</p>'
+      + (S.confirmRemove ? '<div class="row"><span>Remove ' + exCust + ' example customers and ' + exTk + ' example tickets?</span><button type="button" class="btn primary" data-act="rm-example-yes">Remove</button><button type="button" class="btn" data-act="rm-example-no">Keep</button></div>' : '<div class="row"><button type="button" class="btn" data-act="rm-example">Remove example data</button></div>') + '</div></section>';
+  }
+  return h;
+}
+function importPreview(){
+  var p = S.imp, newCust = {};
+  p.devices.forEach(function(d){ if (!A.custById[d.customerId]) newCust[d.customerId] = d.customerName; });
+  var nc = Object.keys(newCust).length;
+  var now = new Date(); now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  return '<form id="impForm" class="panel-b" style="padding:0" novalidate><div class="note"><strong>' + esc(p.filename) + '</strong><span>' + p.devices.length + ' devices ready · ' + nc + ' new customer' + (nc === 1 ? '' : 's') + (p.errors.length ? ' · ' + p.errors.length + ' row' + (p.errors.length === 1 ? '' : 's') + ' skipped or adjusted' : '') + '</span></div>'
+    + (p.errors.length ? '<details><summary>Show issues</summary><ul class="sub">' + p.errors.slice(0, 30).map(function(e){ return '<li>' + esc(e) + '</li>'; }).join('') + '</ul></details>' : '')
+    + '<fieldset style="border:0; padding:0; margin:0; display:flex; flex-direction:column; gap:6px"><legend class="sub" style="font-weight:600; margin-bottom:4px">How to apply</legend>'
+    + '<label class="row"><input type="radio" name="impMode" id="impMerge" value="merge" checked> Update matching serials, keep the rest</label>'
+    + '<label class="row"><input type="radio" name="impMode" id="impReplace" value="replace"> Replace all devices with this file</label></fieldset>'
+    + '<div class="field" style="max-width:280px"><label for="impAsOf">Data as of</label><input class="input" id="impAsOf" type="datetime-local" value="' + now.toISOString().slice(0, 16) + '"></div>'
+    + '<div class="row"><button type="submit" class="btn primary">Import ' + p.devices.length + ' devices</button><button type="button" class="btn" data-act="imp-cancel">Cancel</button></div></form>';
+}
+
+/* ---------- actions ---------- */
+function saveFile(name, text){
+  if (!S.dl) { toast('Downloads aren’t available in this view.'); return; }
+  S.dl.save({filename:name, data:text}).then(function(){ toast('Saved ' + name); }, function(e){ if (e && e.code !== 'declined') toast('Couldn’t save the file.'); });
+}
+function openItem(id){
+  var it = (S._queue || []).filter(function(x){ return x.id === id; })[0]; if (!it) return;
+  if (it.ticket) openTicket(it.ticket);
+  else if (it.route === 'devices') { S.dev.customerId = it.filter.customerId; S.dev.cause = it.filter.cause; S.dev.open = null; location.hash = '#devices'; }
+  else { S.cust.open = it.filter.customerId; location.hash = '#customers'; }
+}
+function setSeasonal(serials, on){
+  var ps = serials.map(function(s){ var ref = S.db.doc('flags/' + s); return on ? ref.set({seasonal:true, by:S.uid, at:nowIso()}) : ref.delete(); });
+  return write(Promise.all(ps), on ? 'Marked ' + serials.length + ' as parked' : 'Unmarked');
+}
+function devicePrefill(serials){
+  var d0 = deviceBySerial(serials[0]), c = A.cls[serials[0]];
+  var cause = c && c.cause ? E.CAUSES[c.cause].label.toLowerCase().replace('cng', 'CNG') : 'not reporting';
+  return { customerId: d0 ? d0.customerId : '', serials: serials, category:'Device issue', source:'device',
+    priority: c && c.batch ? 'High' : 'Normal',
+    subject: serials.length === 1 ? (d0 ? d0.vehicle : serials[0]) + ': ' + cause : serials.length + ' vehicles: ' + cause,
+    body: c ? 'Pitwall: ' + E.nextStep(c) : '' };
+}
+function chunkWrites(devs){
+  var byC = {}; devs.forEach(function(d){ (byC[d.customerId] = byC[d.customerId] || []).push(d); });
+  var docs = {};
+  Object.keys(byC).forEach(function(cid){ var l = byC[cid]; for (var i = 0, n = 1; i < l.length; i += 400, n++) docs[cid + '--' + n] = {customerId:cid, chunk:n, devices:l.slice(i, i + 400)}; });
+  return docs;
+}
+function applyImport(mode, asOfVal){
+  var p = S.imp; if (!p) return;
+  var incoming = p.devices.map(function(d){ var o = Object.assign({}, d); delete o.customerName; return o; });
+  var result;
+  if (mode === 'replace') result = incoming;
+  else { var map = {}; S.devices.forEach(function(d){ map[d.serial] = d; }); incoming.forEach(function(d){ map[d.serial] = d; }); result = Object.keys(map).map(function(k){ return map[k]; }); }
+  var docs = chunkWrites(result), ops = [];
+  Object.keys(docs).forEach(function(id){ ops.push(S.db.doc('devices/' + id).set(docs[id])); });
+  S.deviceDocIds.forEach(function(id){ if (!docs[id]) ops.push(S.db.doc('devices/' + id).delete()); });
+  var known = {}; S.customers.forEach(function(c){ known[c.id] = 1; });
+  p.devices.forEach(function(d){ if (!known[d.customerId]) { known[d.customerId] = 1; ops.push(S.db.doc('customers/' + d.customerId).set({id:d.customerId, name:d.customerName || d.customerId})); } });
+  ops.push(S.db.doc('settings/meta').set({asOf: asOfVal ? new Date(asOfVal).toISOString() : nowIso(), source:'import', filename:p.filename, importedAt:nowIso(), importedBy:S.uid}));
+  write(Promise.all(ops), 'Imported ' + incoming.length + ' devices').then(function(ok){ if (ok) { S.imp = null; schedule(); } });
+}
+function importCustomers(text, filename){
+  var r = E.rowsToCustomers(E.parseCSV(text));
+  if (!r.customers.length) { toast('No customers found in ' + filename + '. Check the header row.'); return; }
+  var ops = r.customers.map(function(c){
+    var ex = A.custById[c.id] || {};
+    var o = Object.assign({}, ex, {id:c.id, name:c.name || ex.name});
+    ['database','lastAdminLoginAt','renewalAt'].forEach(function(k){ if (c[k]) o[k] = c[k]; });
+    return S.db.doc('customers/' + c.id).set(o);
+  });
+  write(Promise.all(ops), 'Updated ' + r.customers.length + ' customers' + (r.errors.length ? ' (' + r.errors.length + ' rows skipped)' : ''));
+}
+function readFile(file, cb){
+  if (!file) return;
+  if (!/\.csv$/i.test(file.name) && file.type && file.type.indexOf('csv') < 0 && file.type !== 'text/plain') { toast(file.name + ' isn’t a CSV file.'); return; }
+  var fr = new FileReader(); fr.onload = function(){ cb(String(fr.result), file.name); }; fr.onerror = function(){ toast('Couldn’t read ' + file.name + '.'); }; fr.readAsText(file);
+}
+function loadDeviceFile(text, name){
+  var r = E.rowsToDevices(E.parseCSV(text));
+  if (!r.devices.length) { toast('No devices found in ' + name + '. It needs serial and customer columns.'); return; }
+  S.imp = {filename:name, devices:r.devices, errors:r.errors}; schedule();
+}
+function removeExample(){
+  var ex = {}; S.customers.forEach(function(c){ if (c.example) ex[c.id] = 1; });
+  var ops = Object.keys(ex).map(function(c){ return S.db.doc('customers/' + c).delete(); });
+  S.deviceDocIds.forEach(function(d){ if (ex[d.split('--')[0]]) ops.push(S.db.doc('devices/' + d).delete()); });
+  S.tickets.filter(function(t){ return t.example; }).forEach(function(t){
+    ops.push(S.db.collection('tickets/' + t._id + '/messages').get().then(function(s){ return Promise.all(s.docs.map(function(m){ return S.db.doc('tickets/' + t._id + '/messages/' + m.id).delete(); })); }).then(function(){ return S.db.doc('tickets/' + t._id).delete(); }));
+  });
+  if (S.meta && S.meta.source === 'example') ops.push(S.db.doc('settings/meta').set({asOf:nowIso(), source:'empty'}));
+  S.confirmRemove = false;
+  return write(Promise.all(ops), 'Example data removed');
+}
+
+document.addEventListener('click', function(ev){
+  var el = ev.target.closest('[data-act]'); if (!el) return;
+  if (ev.target.matches('input[type="checkbox"]')) return;
+  var act = el.getAttribute('data-act'), id = el.getAttribute('data-id'), v = el.getAttribute('data-v');
+  switch (act) {
+    case 'qf': S.qFilter = v; schedule(); break;
+    case 'open-item': openItem(id); break;
+    case 'open-cust': S.cust.open = id; S.search = ''; if (location.hash !== '#customers') location.hash = '#customers'; else schedule(); break;
+    case 'open-dev': S.dev.open = id; S.search = ''; if (A.cls[id] && !A.cls[id].silent) S.dev.cause = ''; if (location.hash !== '#devices') location.hash = '#devices'; else schedule(); break;
+    case 'cause': S.dev.cause = S.dev.cause === v ? '' : v; S.dev.sel = {}; schedule(); break;
+    case 'bulk-ticket': startNewTicket(devicePrefill(Object.keys(S.dev.sel))); S.dev.sel = {}; break;
+    case 'ticket-dev': startNewTicket(devicePrefill([S.dev.open])); break;
+    case 'bulk-seasonal': setSeasonal(Object.keys(S.dev.sel), true).then(function(){ S.dev.sel = {}; schedule(); }); break;
+    case 'bulk-clear': S.dev.sel = {}; schedule(); break;
+    case 'toggle-seasonal': var f = S.flags[S.dev.open]; setSeasonal([S.dev.open], !(f && f.seasonal)); break;
+    case 'onb-hide': write(S.db.doc('settings/onboarding').set({hidden:true, at:nowIso(), by:S.uid}), 'Checklist hidden.'); break;
+    case 'copy-link': var lk = location.origin + '/pitwall/login'; if (navigator.clipboard) navigator.clipboard.writeText(lk).then(function(){ toast('Copied ' + lk); }, function(){ toast(lk); }); else toast(lk); break;
+    case 'dev-export': saveFile('silent-devices.csv', E.toCSV(filteredDevices().map(function(d){ var c = A.cls[d.serial]; return {customer:custName(d.customerId), vehicle:d.vehicle, serial:d.serial, silentFor:E.fmtAgo(c.silentMs), lastSignal:d.lastSignal, likelyCause:E.CAUSES[c.cause].label, batch:c.batch ? 'yes' : '', nextStep:E.nextStep(c)}; }), ['customer','vehicle','serial','silentFor','lastSignal','likelyCause','batch','nextStep'])); break;
+    case 'new-ticket': startNewTicket({}); break;
+    case 'ticket-cust': startNewTicket({customerId:id}); break;
+    case 'open-ticket': openTicket(id); break;
+    case 'tickets-back': openTicket(null); break;
+    case 'claim': write(updateTicket(id, {assignee:S.uid, status:(ticketById(id) || {}).status === 'new' ? 'open' : (ticketById(id) || {}).status}, {event:'assigned', value:S.uid}), 'Assigned to you'); break;
+    case 'sf': S.sup.status = v; schedule(); break;
+    case 'smine': S.sup.mine = !S.sup.mine; schedule(); break;
+    case 'tab': S.sup.tab = v; schedule(); break;
+    case 'assign':
+      var t = ticketById(S.sup.open); if (!t) break;
+      var target = id || null;
+      write(updateTicket(t._id, {assignee:target}, {event:'assigned', value:target}), target ? 'Assigned' : 'Unassigned'); break;
+    case 'exp-tickets': saveFile('tickets.csv', E.toCSV(filteredTickets().map(function(t){ var s = slaOf(t); return {number:t.number, subject:t.subject, customer:custName(t.customerId), category:t.category, priority:t.priority, status:STATUS[t.status], contact:t.contact, vehicles:t.vehicles || [], createdAt:t.createdAt, firstResponseAt:t.firstResponseAt || '', resolvedAt:t.resolvedAt || '', deadline:s.label}; }), ['number','subject','customer','category','priority','status','contact','vehicles','createdAt','firstResponseAt','resolvedAt','deadline'])); break;
+    case 'brief': S.fleet.customerId = id; break;
+    case 'reply':
+      var k = el.getAttribute('data-k'), cid = el.getAttribute('data-cid');
+      var serials = S.devices.filter(function(d){ var c = A.cls[d.serial]; return d.customerId === cid && c.silent && (c.cause + (c.batch ? '~b' : '')) === k; }).map(function(d){ return d.serial; });
+      var cz = E.CAUSES[k.split('~')[0]];
+      el.disabled = true;
+      write(createTicket({subject: serials.length + (serials.length === 1 ? ' tracker' : ' trackers') + ': ' + cz.label.toLowerCase().replace('cng', 'CNG'), customerId:cid, category:'Device issue', priority: /~b$/.test(k) || /help|send|schedule/i.test(v) ? 'High' : 'Normal', contact:custName(cid) + ' fleet manager', serials:serials, source:'brief', briefKey:cid + '~' + k},
+        {kind:'request', from:custName(cid) + ' fleet manager', body:'Answered from the customer brief: “' + v + '”'}), 'Sent. Ticket opened in Support.');
+      break;
+    case 'tpl-dev': saveFile('pitwall-devices-template.csv', E.toCSV([
+        {serial:'G9EXAMPLE01', customerId:'Your Customer Inc', vehicle:'Truck 1', lastCommAt:'2026-10-11T15:40:00Z', lastSignal:'normal', activatedAt:'2025-03-01', lastTripAt:'2026-10-11T15:10:00Z', archived:'false', milesToService:'1200'},
+        {serial:'G9EXAMPLE02', customerId:'Your Customer Inc', vehicle:'Truck 2', lastCommAt:'2026-10-08T23:10:00Z', lastSignal:'power_removed', activatedAt:'2025-03-01', lastTripAt:'2026-10-08T22:40:00Z', archived:'false', milesToService:'-300'}
+      ], E.DEVICE_COLS)); break;
+    case 'tpl-cust': saveFile('pitwall-customers-template.csv', E.toCSV([{id:'', name:'Your Customer Inc', database:'yourcustomer', lastAdminLoginAt:'2026-09-01', renewalAt:'2027-03-31'}], E.CUSTOMER_COLS)); break;
+    case 'imp-cancel': S.imp = null; schedule(); break;
+    case 'rm-example': S.confirmRemove = true; schedule(); break;
+    case 'rm-example-no': S.confirmRemove = false; schedule(); break;
+    case 'rm-example-yes': removeExample(); break;
+    case 'geo-sync': geoSync(null); break;
+    case 'bk-run': geoApi('/pitwall/api/backups', {}).then(function(r){ BK = r; BK_AT = Date.now(); toast('Backup done'); schedule(); }, function(e){ toast(e.message); }); break;
+    case 'geo-sync-one': geoSync(id); break;
+    case 'geo-remove': if (el.getAttribute('data-confirm')) geoRemove(id); else { el.setAttribute('data-confirm', '1'); el.textContent = 'Confirm remove'; } break;
+  }
+});
+
+document.addEventListener('change', function(ev){
+  var t = ev.target;
+  if (t.matches('[data-sel]')) { var s = t.getAttribute('data-sel'); if (t.checked) S.dev.sel[s] = 1; else delete S.dev.sel[s]; schedule(); return; }
+  if (t.id === 'selAll') { filteredDevices().slice(0, 300).forEach(function(d){ if (t.checked) S.dev.sel[d.serial] = 1; else delete S.dev.sel[d.serial]; }); schedule(); return; }
+  if (t.id === 'devCust') { S.dev.customerId = t.value; S.dev.sel = {}; schedule(); return; }
+  if (t.id === 'fleetCust') { S.fleet.customerId = t.value; schedule(); return; }
+  if (t.id === 'supPrio') { S.sup.priority = t.value; schedule(); return; }
+  if (t.id === 'supCust') { S.sup.customerId = t.value; schedule(); return; }
+  if (t.id === 'impFile') { readFile(t.files[0], loadDeviceFile); return; }
+  if (t.id === 'custFile') { readFile(t.files[0], importCustomers); t.value = ''; return; }
+  var tf = t.getAttribute('data-tf');
+  if (tf) {
+    var tk = ticketById(S.sup.open); if (!tk || tk[tf] === t.value) return;
+    var patch = {}; patch[tf] = t.value;
+    if (tf === 'status') { if (t.value === 'resolved' || t.value === 'closed') patch.resolvedAt = tk.resolvedAt || nowIso(); else patch.resolvedAt = null; }
+    write(updateTicket(tk._id, patch, {event: tf === 'customerId' ? 'customer' : tf, value:t.value}), 'Saved');
+  }
+});
+document.addEventListener('input', function(ev){
+  var t = ev.target;
+  if (t.id === 'gsearch') { S.search = t.value; searchResults(); }
+  if (t.id === 'devText') { S.dev.text = t.value; $('devTable').innerHTML = devTable(); }
+  if (t.id === 'supText') { S.sup.text = t.value; $('supTable').innerHTML = ticketTable(); fillNames(); }
+  if (t.id === 'tAssignQ' && S.user) S.user.search(t.value).then(assignResults);
+});
+document.addEventListener('focusin', function(ev){ if (ev.target.id === 'tAssignQ' && S.user) S.user.search(ev.target.value || '').then(assignResults); });
+document.addEventListener('keydown', function(ev){
+  if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.matches('tr[data-act]')) { ev.preventDefault(); ev.target.click(); }
+});
+document.addEventListener('submit', function(ev){
+  ev.preventDefault();
+  var f = ev.target;
+  if (f.id === 'custMsgForm') {
+    var ct = ticketById(S.sup.open), cb = $('custMsg').value.trim(); if (!ct || !cb) { toast('Write a message first.'); return; }
+    write(S.db.collection('tickets/' + ct._id + '/messages').add({kind:'request', body:cb, from:MYNAME, by:S.uid, at:nowIso()}), 'Sent to your reseller').then(function(ok){ if (ok) $('custMsg').value = ''; });
+  } else if (f.id === 'custNewForm') {
+    var cs = $('cnSubject').value.trim(); if (!cs) { toast('Tell us what you need help with.'); $('cnSubject').focus(); return; }
+    var cbtn = f.querySelector('button[type="submit"]'); cbtn.disabled = true;
+    write(createTicket({subject:cs, customerId:MYCID, category:'Other', priority:'Normal', contact:$('cnContact').value.trim() || MYNAME, source:'customer'}, {kind:'request', from:MYNAME, body:$('cnBody').value.trim()})).then(function(r){ cbtn.disabled = false; if (r && r.id) { toast('Request #' + r.number + ' sent'); openTicket(r.id); } });
+  } else if (f.id === 'newTicket') {
+    var subject = $('ntSubject').value.trim(), cust = $('ntCustomer').value;
+    if (!subject) { toast('Add a subject.'); $('ntSubject').focus(); return; }
+    if (!cust) { toast('Choose a customer.'); $('ntCustomer').focus(); return; }
+    var pre = S.sup.creating || {};
+    var btn = f.querySelector('button[type="submit"]'); btn.disabled = true;
+    write(createTicket({subject:subject, customerId:cust, category:$('ntCategory').value, priority:$('ntPriority').value, contact:$('ntContact').value.trim(), serials:pre.serials || [], source:pre.source || 'staff', assignee: $('ntAssign').value === 'me' ? S.uid : null},
+      {kind:'request', from:$('ntContact').value.trim() || custName(cust), body:$('ntBody').value.trim()})).then(function(r){
+        btn.disabled = false;
+        if (r && r.id) { toast('Ticket #' + r.number + ' created'); openTicket(r.id); }
+      });
+  } else if (f.id === 'msgForm') {
+    var tk = ticketById(S.sup.open); if (!tk) return;
+    var body = $('msgBody').value.trim(); if (!body) { toast('Write something first.'); return; }
+    var kind = S.sup.tab, newStatus = $('msgStatus').value;
+    if (kind === 'reply' && navigator.clipboard) navigator.clipboard.writeText(body).catch(function(){});
+    var patch = {};
+    if (kind === 'reply' && !tk.firstResponseAt) patch.firstResponseAt = nowIso();
+    if (kind === 'reply' && tk.status === 'new' && !newStatus) newStatus = 'open';
+    if (kind === 'request' && tk.status === 'waiting' && !newStatus) newStatus = 'open';
+    if (newStatus) { patch.status = newStatus; if (newStatus === 'resolved' || newStatus === 'closed') patch.resolvedAt = nowIso(); }
+    var ops = [S.db.collection('tickets/' + tk._id + '/messages').add({kind:kind, body:body, from: kind === 'request' ? (tk.contact || custName(tk.customerId)) : '', by:S.uid, at:nowIso()})];
+    ops.push(updateTicket(tk._id, patch, newStatus ? {event:'status', value:newStatus} : null));
+    write(Promise.all(ops), kind === 'reply' ? 'Reply logged and copied. Paste it into your message to the customer.' : kind === 'note' ? 'Note added' : 'Message logged').then(function(ok){ if (ok) { var b = $('msgBody'); if (b) b.value = ''; } });
+  } else if (f.id === 'helpForm') {
+    var subj = $('helpSubject').value.trim(); if (!subj) { toast('Tell us what you need help with.'); return; }
+    var cid = S.fleet.customerId || (S.customers[0] && S.customers[0].id);
+    var contact = $('helpContact').value.trim() || custName(cid) + ' fleet manager';
+    write(createTicket({subject:subj, customerId:cid, category:'Other', priority:'Normal', contact:contact, source:'brief'}, {kind:'request', from:contact, body:$('helpBody').value.trim()}), 'Sent. Ticket opened in Support.').then(function(r){ if (r) { ['helpSubject','helpBody','helpContact'].forEach(function(i){ var e = $(i); if (e) e.value = ''; }); } });
+  } else if (f.id === 'geoForm') {
+    var gb = {database:$('geoDb').value.trim(), customer:$('geoCust').value.trim(), userName:$('geoUser').value.trim(), password:$('geoPass').value, server:$('geoServer').value.trim()};
+    if (!gb.database || !gb.userName || !gb.password) { toast('Enter the database, a MyGeotab username and its password.'); return; }
+    var gbtn = f.querySelector('button[type="submit"]'); gbtn.disabled = true; gbtn.textContent = 'Checking login…';
+    geoApi('/pitwall/api/geotab/databases', gb).then(function(){ toast('Added ' + gb.database + '. First sync is running.'); ['geoDb','geoCust','geoUser','geoPass'].forEach(function(i){ var x = $(i); if (x) x.value = ''; }); },
+      function(e){ toast(e.message); }).then(function(){ gbtn.disabled = false; gbtn.textContent = 'Check login and add'; });
+  } else if (f.id === 'impForm') {
+    applyImport($('impReplace').checked ? 'replace' : 'merge', $('impAsOf').value);
+  }
+});
+['dragover','dragleave','drop'].forEach(function(type){
+  document.addEventListener(type, function(ev){
+    var d = ev.target.closest && ev.target.closest('#drop'); if (!d) return;
+    ev.preventDefault();
+    if (type === 'dragover') d.classList.add('over'); else d.classList.remove('over');
+    if (type === 'drop' && ev.dataTransfer.files[0]) readFile(ev.dataTransfer.files[0], loadDeviceFile);
+  });
+});
+window.addEventListener('hashchange', function(){
+  if (location.hash !== '#support' && S.sup.unsub) { S.sup.unsub(); S.sup.unsub = null; S.sup.open = null; }
+  if (location.hash !== '#support') S.sup.creating = null;
+  window.scrollTo(0, 0); schedule();
+});
+/* Ticket deadlines move with the clock. */
+setInterval(function(){ if (S.route === 'support' || S.route === 'portfolio') schedule(); }, 60000);
+
+/* ---------- boot ---------- */
+if (!window.claude || !window.claude.use) { S.failed = true; render(); return; }
+Promise.all([window.claude.use('db'), window.claude.use('user'), window.claude.use('downloads'), window.claude.use('mcp')]).then(function(r){
+  S.db = r[0]; S.user = r[1]; S.dl = r[2]; S.mcp = r[3];
+  if (!S.db) { S.failed = true; render(); return; }
+  var w = S.user ? Promise.all([S.user.id(), S.user.canEdit()]) : Promise.resolve([null, false]);
+  w.then(function(x){ S.uid = x[0]; S.canEdit = !!x[1]; schedule(); });
+  subscribe(); render();
+});
+})();
+</script>
+
+</body></html>
