@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pitwall sign in</title>
+<style>
+:root{--bg:#F3F4F1;--surface:#fff;--ink:#16191D;--muted:#59606A;--line:#DDE0DA;--accent:#C2410C;--crit:#9A3412;--focus:#1F4E8C}
+@media (prefers-color-scheme:dark){:root{--bg:#0F1113;--surface:#171A1D;--ink:#ECEEEA;--muted:#A3AAB2;--line:#2C3136;--accent:#F97316;--crit:#FDBA8C;--focus:#9CC3F5}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 'Segoe UI',system-ui,-apple-system,sans-serif}
+body.center{min-height:100vh;display:grid;place-items:center;padding:16px}
+a{color:var(--focus)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.card{width:min(400px,100%);background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:28px 24px;display:flex;flex-direction:column;gap:14px}
+.wide{max-width:900px;margin:0 auto;padding:24px 16px 48px;display:flex;flex-direction:column;gap:18px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:20px}
+.brand .ver{font-size:11px;font-weight:600;color:var(--accent);border:1px solid var(--line);border-radius:999px;padding:1px 8px;white-space:nowrap}
+h1{margin:0;font-size:26px;letter-spacing:-.01em} h2{margin:0 0 10px;font-size:18px}
+.lede{margin:0;color:var(--muted)} .muted{color:var(--muted)}
+form{display:flex;flex-direction:column;gap:12px}
+.grid{flex-direction:row;flex-wrap:wrap;align-items:flex-end}
+.grid .field{flex:1 1 180px}
+.field{display:flex;flex-direction:column;gap:4px}
+label{font-size:12px;font-weight:600;color:var(--muted)}
+input,select{font:inherit;color:inherit;min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:9px;background:var(--surface);width:100%}
+.btn{font:inherit;font-weight:600;min-height:44px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.sm{min-height:34px;padding:0 10px;font-size:13px}
+.btn[disabled]{opacity:.5}
+.err{margin:0;color:var(--crit);font-weight:600}
+table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+th,td{text-align:left;padding:10px 14px;border-top:1px solid var(--line)} th{font-size:12px;color:var(--muted);border-top:0} td.r{text-align:right;white-space:nowrap}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:20px;background:var(--ink);color:var(--bg);padding:12px 16px;border-radius:10px;max-width:calc(100vw - 32px);margin:0}
+
+</style>
+<script>
+/* Pitwall on WordPress: small adapter that loads before the app.
+   - Reads go out as POST (marked as reads), so no web cache ever keeps a copy.
+   - Live updates: WordPress can't hold a connection open, so the page asks
+     "what changed?" every few seconds, and right after you save something. */
+(function () {
+  'use strict';
+  var BASE = '/pitwall/app/api/', realFetch = window.fetch.bind(window);
+  var pollers = [];
+  function isApi(url) { try { var u = new URL(url, location.href); return u.origin === location.origin && u.pathname.indexOf(BASE) === 0 ? u.pathname : null; } catch (e) { return null; } }
+  window.fetch = function (input, init) {
+    var url = typeof input === 'string' ? input : input.url, p = isApi(url);
+    if (!p) return realFetch(input, init);
+    init = Object.assign({ credentials: 'same-origin' }, init || {});
+    var method = (init.method || 'GET').toUpperCase();
+    if (method === 'GET') { init.method = 'POST'; init.body = '{}'; init.headers = Object.assign({ 'Content-Type': 'application/json' }, init.headers || {}, { 'X-Pitwall-Get': '1' }); }
+    var writes = p === BASE + 'db' && init.body && !/"op"\s*:\s*"(list|get)"/.test(String(init.body));
+    return realFetch(url, init).then(function (r) { if (writes || p.indexOf(BASE + 'geotab/') === 0 || p.indexOf(BASE + 'users') === 0) pollers.forEach(function (x) { x.soon(); }); return r; });
+  };
+  var RealES = window.EventSource;
+  window.EventSource = function (url) {
+    if (!isApi(url)) return new RealES(url);
+    var s = { onmessage: null, onerror: null, onopen: null, readyState: 1 }, seq = 0, timer = null, busy = false, closed = false, again = false;
+    function wait() { return document.hidden ? 30000 : 4000; }
+    function schedule(ms) { clearTimeout(timer); if (!closed) timer = setTimeout(poll, ms); }
+    function poll() {
+      if (busy) { again = true; return; }
+      busy = true;
+      realFetch(BASE + 'changes', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ since: seq }) })
+        .then(function (r) { if (r.status === 401) { location.href = '/pitwall/app/login'; return null; } return r.ok ? r.json() : null; })
+        .then(function (j) {
+          if (!j) return;
+          var first = !seq; seq = j.seq || seq;
+          if (first) { if (s.onopen) s.onopen(); return; }
+          (j.paths || []).forEach(function (path) { if (s.onmessage) s.onmessage({ data: JSON.stringify({ path: path }) }); });
+        }, function () { if (s.onerror) s.onerror(); })
+        .then(function () { busy = false; if (again) { again = false; schedule(300); } else schedule(wait()); });
+    }
+    s.soon = function () { schedule(400); };
+    s.close = function () { closed = true; clearTimeout(timer); pollers = pollers.filter(function (x) { return x !== s; }); };
+    pollers.push(s);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) schedule(200); });
+    schedule(0);
+    return s;
+  };
+
+  /* Resellers: the owner gets a "Resellers" link; while helping a reseller, a bar says
+     whose Pitwall this is, with a way back. */
+  function decorate(user) {
+    if (!user || !user.owner) return;
+    if (user.support && !document.getElementById('pwSupportBar')) {
+      var bar = document.createElement('div');
+      bar.id = 'pwSupportBar'; bar.setAttribute('role', 'status');
+      bar.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:center;padding:8px 16px;background:#C2410C;color:#fff;font:600 14px/1.4 system-ui,-apple-system,sans-serif;position:relative;z-index:50';
+      var t = document.createElement('span');
+      t.textContent = 'Support view: you’re inside ' + (user.workspace ? user.workspace.name : 'a reseller') + '’s Pitwall as an admin.';
+      var back = document.createElement('button');
+      back.type = 'button'; back.textContent = 'Back to my workspace';
+      back.style.cssText = 'font:inherit;min-height:32px;padding:0 12px;border-radius:8px;border:1px solid #fff;background:transparent;color:#fff;cursor:pointer';
+      back.onclick = function () {
+        back.disabled = true;
+        realFetch(BASE + 'owner/support', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+          .then(function () { location.href = '/pitwall/app/owner'; }, function () { back.disabled = false; });
+      };
+      var list = document.createElement('a');
+      list.href = '/pitwall/app/owner'; list.textContent = 'All resellers'; list.style.color = '#fff';
+      bar.appendChild(t); bar.appendChild(back); bar.appendChild(list);
+      document.body.insertBefore(bar, document.body.firstChild);
+    }
+    if (location.pathname.indexOf('/pitwall/app/owner') === 0 || document.getElementById('pwOwnerLink')) return;
+    var team = document.querySelector('a[data-r="team"]');
+    var link = document.createElement('a');
+    link.id = 'pwOwnerLink'; link.href = '/pitwall/app/owner'; link.textContent = 'Resellers';
+    /* its own menu group, next to the app's menu (the app hides links it doesn't know) */
+    if (team && team.parentNode) { var grp = document.createElement('div'); grp.className = 'nav'; grp.appendChild(link); team.parentNode.parentNode.insertBefore(grp, team.parentNode.nextSibling); }
+    else {
+      var backLink = document.querySelector('main:not([hidden]) p > a[href="/pitwall/app/"]');
+      if (backLink) { link.style.marginLeft = '16px'; backLink.parentNode.appendChild(link); }
+    }
+  }
+  function lookUp() {
+    realFetch(BASE + 'state', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-Pitwall-Get': '1' }, body: '{}' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (s) { if (s) { decorate(s.user); setTimeout(function () { decorate(s.user); }, 1500); } }, function () {});
+  }
+  if (location.pathname.indexOf('/pitwall/app/login') !== 0) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', lookUp); else lookUp();
+  }
+})();
+
+</script>
+</head>
+<body class="center">
+<main class="card">
+  <div class="brand"><svg width="26" height="26" viewBox="0 0 26 26" fill="none" stroke="#C2410C" stroke-width="2" aria-hidden="true"><path d="M3 9h20M3 17h20M9 3v20M17 3v20"/></svg>Pitwall<span class="ver">Beta v1.2</span></div>
+  <h1 id="title">Sign in</h1>
+  <p class="lede" id="lede">Use the username and password you were given. The first time you sign in, you’ll choose your own password.</p>
+  <form id="f" novalidate>
+    <div class="field" id="nameRow" hidden><label for="name">Your name</label><input id="name" autocomplete="name"></div>
+    <div class="field"><label for="username">Username</label><input id="username" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>
+    <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required></div>
+    <p class="err" id="err" role="alert" hidden></p>
+    <button class="btn primary" type="submit" id="go">Sign in</button>
+  </form>
+  <p class="muted" id="help">Forgot your password? Ask whoever set up your Pitwall login to reset it.</p>
+</main>
+<script>
+(function(){
+  var setup = false, $ = function(id){ return document.getElementById(id); };
+  fetch('/pitwall/app/api/state').then(function(r){ return r.json(); }).then(function(s){
+    if (s.user) { location.href = s.user.mustChangePassword ? '/pitwall/app/team#welcome' : '/pitwall/app/'; return; }
+    if (s.setupNeeded && !s.setupAllowed) {
+      $('title').textContent = 'Pitwall isn’t set up yet';
+      $('lede').textContent = s.setupHint || 'Ask your Pitwall admin to finish setting it up.';
+      $('f').hidden = true; $('help').hidden = true; return;
+    }
+    if (s.setupNeeded) {
+      setup = true;
+      $('title').textContent = 'Set up Pitwall';
+      $('lede').textContent = 'Create the first admin account. You’ll use it to connect your customers’ MyGeotab databases and to add your staff and customers.';
+      $('nameRow').hidden = false; $('help').hidden = true; $('go').textContent = 'Create admin account';
+      $('password').setAttribute('autocomplete', 'new-password');
+    }
+    $(setup ? 'name' : 'username').focus();
+  });
+  $('f').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    var b = { username: $('username').value.trim(), password: $('password').value, name: $('name').value.trim() };
+    if (!b.username || !b.password) return show('Enter a username and password.');
+    if (setup && b.password.length < 8) return show('Use a password of at least 8 characters.');
+    $('go').disabled = true;
+    fetch(setup ? '/pitwall/app/api/setup' : '/pitwall/app/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(b) })
+      .then(function(r){ return r.json().then(function(j){ if (!r.ok) throw new Error(j.error || 'Sign-in failed.'); location.href = j.mustChangePassword ? '/pitwall/app/team#welcome' : '/pitwall/app/'; }); })
+      .catch(function(e){ $('go').disabled = false; show(e.message === 'Failed to fetch' ? 'Can’t reach Pitwall right now. Check your connection and try again.' : e.message); });
+  });
+  function show(m){ var e = $('err'); e.textContent = m; e.hidden = false; }
+})();
+</script>
+</body>
+</html>
