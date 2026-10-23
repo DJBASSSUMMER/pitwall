@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pitwall team</title>
+<style>
+:root{--bg:#F3F4F1;--surface:#fff;--ink:#16191D;--muted:#59606A;--line:#DDE0DA;--accent:#C2410C;--crit:#9A3412;--focus:#1F4E8C}
+@media (prefers-color-scheme:dark){:root{--bg:#0F1113;--surface:#171A1D;--ink:#ECEEEA;--muted:#A3AAB2;--line:#2C3136;--accent:#F97316;--crit:#FDBA8C;--focus:#9CC3F5}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 'Segoe UI',system-ui,-apple-system,sans-serif}
+body.center{min-height:100vh;display:grid;place-items:center;padding:16px}
+a{color:var(--focus)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.card{width:min(400px,100%);background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:28px 24px;display:flex;flex-direction:column;gap:14px}
+.wide{max-width:900px;margin:0 auto;padding:24px 16px 48px;display:flex;flex-direction:column;gap:18px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:20px}
+.brand .ver{font-size:11px;font-weight:600;color:var(--accent);border:1px solid var(--line);border-radius:999px;padding:1px 8px;white-space:nowrap}
+h1{margin:0;font-size:26px;letter-spacing:-.01em} h2{margin:0 0 10px;font-size:18px}
+.lede{margin:0;color:var(--muted)} .muted{color:var(--muted)}
+form{display:flex;flex-direction:column;gap:12px}
+.grid{flex-direction:row;flex-wrap:wrap;align-items:flex-end}
+.grid .field{flex:1 1 180px}
+.field{display:flex;flex-direction:column;gap:4px}
+label{font-size:12px;font-weight:600;color:var(--muted)}
+input,select{font:inherit;color:inherit;min-height:44px;padding:8px 12px;border:1px solid var(--line);border-radius:9px;background:var(--surface);width:100%}
+.btn{font:inherit;font-weight:600;min-height:44px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.sm{min-height:34px;padding:0 10px;font-size:13px}
+.btn[disabled]{opacity:.5}
+.err{margin:0;color:var(--crit);font-weight:600}
+table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+th,td{text-align:left;padding:10px 14px;border-top:1px solid var(--line)} th{font-size:12px;color:var(--muted);border-top:0} td.r{text-align:right;white-space:nowrap}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:20px;background:var(--ink);color:var(--bg);padding:12px 16px;border-radius:10px;max-width:calc(100vw - 32px);margin:0}
+
+</style>
+<script>
+/* Pitwall on WordPress: small adapter that loads before the app.
+   - Reads go out as POST (marked as reads), so no web cache ever keeps a copy.
+   - Live updates: WordPress can't hold a connection open, so the page asks
+     "what changed?" every few seconds, and right after you save something. */
+(function () {
+  'use strict';
+  var BASE = '/pitwall/app/api/', realFetch = window.fetch.bind(window);
+  var pollers = [];
+  function isApi(url) { try { var u = new URL(url, location.href); return u.origin === location.origin && u.pathname.indexOf(BASE) === 0 ? u.pathname : null; } catch (e) { return null; } }
+  window.fetch = function (input, init) {
+    var url = typeof input === 'string' ? input : input.url, p = isApi(url);
+    if (!p) return realFetch(input, init);
+    init = Object.assign({ credentials: 'same-origin' }, init || {});
+    var method = (init.method || 'GET').toUpperCase();
+    if (method === 'GET') { init.method = 'POST'; init.body = '{}'; init.headers = Object.assign({ 'Content-Type': 'application/json' }, init.headers || {}, { 'X-Pitwall-Get': '1' }); }
+    var writes = p === BASE + 'db' && init.body && !/"op"\s*:\s*"(list|get)"/.test(String(init.body));
+    return realFetch(url, init).then(function (r) { if (writes || p.indexOf(BASE + 'geotab/') === 0 || p.indexOf(BASE + 'users') === 0) pollers.forEach(function (x) { x.soon(); }); return r; });
+  };
+  var RealES = window.EventSource;
+  window.EventSource = function (url) {
+    if (!isApi(url)) return new RealES(url);
+    var s = { onmessage: null, onerror: null, onopen: null, readyState: 1 }, seq = 0, timer = null, busy = false, closed = false, again = false;
+    function wait() { return document.hidden ? 30000 : 4000; }
+    function schedule(ms) { clearTimeout(timer); if (!closed) timer = setTimeout(poll, ms); }
+    function poll() {
+      if (busy) { again = true; return; }
+      busy = true;
+      realFetch(BASE + 'changes', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ since: seq }) })
+        .then(function (r) { if (r.status === 401) { location.href = '/pitwall/app/login'; return null; } return r.ok ? r.json() : null; })
+        .then(function (j) {
+          if (!j) return;
+          var first = !seq; seq = j.seq || seq;
+          if (first) { if (s.onopen) s.onopen(); return; }
+          (j.paths || []).forEach(function (path) { if (s.onmessage) s.onmessage({ data: JSON.stringify({ path: path }) }); });
+        }, function () { if (s.onerror) s.onerror(); })
+        .then(function () { busy = false; if (again) { again = false; schedule(300); } else schedule(wait()); });
+    }
+    s.soon = function () { schedule(400); };
+    s.close = function () { closed = true; clearTimeout(timer); pollers = pollers.filter(function (x) { return x !== s; }); };
+    pollers.push(s);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) schedule(200); });
+    schedule(0);
+    return s;
+  };
+
+  /* Resellers: the owner gets a "Resellers" link; while helping a reseller, a bar says
+     whose Pitwall this is, with a way back. */
+  function decorate(user) {
+    if (!user || !user.owner) return;
+    if (user.support && !document.getElementById('pwSupportBar')) {
+      var bar = document.createElement('div');
+      bar.id = 'pwSupportBar'; bar.setAttribute('role', 'status');
+      bar.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:center;padding:8px 16px;background:#C2410C;color:#fff;font:600 14px/1.4 system-ui,-apple-system,sans-serif;position:relative;z-index:50';
+      var t = document.createElement('span');
+      t.textContent = 'Support view: you’re inside ' + (user.workspace ? user.workspace.name : 'a reseller') + '’s Pitwall as an admin.';
+      var back = document.createElement('button');
+      back.type = 'button'; back.textContent = 'Back to my workspace';
+      back.style.cssText = 'font:inherit;min-height:32px;padding:0 12px;border-radius:8px;border:1px solid #fff;background:transparent;color:#fff;cursor:pointer';
+      back.onclick = function () {
+        back.disabled = true;
+        realFetch(BASE + 'owner/support', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+          .then(function () { location.href = '/pitwall/app/owner'; }, function () { back.disabled = false; });
+      };
+      var list = document.createElement('a');
+      list.href = '/pitwall/app/owner'; list.textContent = 'All resellers'; list.style.color = '#fff';
+      bar.appendChild(t); bar.appendChild(back); bar.appendChild(list);
+      document.body.insertBefore(bar, document.body.firstChild);
+    }
+    if (location.pathname.indexOf('/pitwall/app/owner') === 0 || document.getElementById('pwOwnerLink')) return;
+    var team = document.querySelector('a[data-r="team"]');
+    var link = document.createElement('a');
+    link.id = 'pwOwnerLink'; link.href = '/pitwall/app/owner'; link.textContent = 'Resellers';
+    /* its own menu group, next to the app's menu (the app hides links it doesn't know) */
+    if (team && team.parentNode) { var grp = document.createElement('div'); grp.className = 'nav'; grp.appendChild(link); team.parentNode.parentNode.insertBefore(grp, team.parentNode.nextSibling); }
+    else {
+      var backLink = document.querySelector('main:not([hidden]) p > a[href="/pitwall/app/"]');
+      if (backLink) { link.style.marginLeft = '16px'; backLink.parentNode.appendChild(link); }
+    }
+  }
+  function lookUp() {
+    realFetch(BASE + 'state', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-Pitwall-Get': '1' }, body: '{}' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (s) { if (s) { decorate(s.user); setTimeout(function () { decorate(s.user); }, 1500); } }, function () {});
+  }
+  /* Release notice: Beta v1.2.4. Shown once per browser, and only until it expires (2 days). */
+  var NOTICE_ID = 'beta-1.2.4', NOTICE_UNTIL = Date.parse('2026-10-25T03:15:00Z');
+  function notice() {
+    if (Date.now() > NOTICE_UNTIL) return;
+    try { if (localStorage.getItem('pwNotice') === NOTICE_ID) return; } catch (e) {}
+    if (document.getElementById('pwNotice')) return;
+    var dark = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches;
+    var wrap = document.createElement('div');
+    wrap.id = 'pwNotice';
+    wrap.style.cssText = 'position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.55)';
+    var box = document.createElement('div');
+    box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-labelledby', 'pwNoticeTitle');
+    box.style.cssText = 'max-width:440px;width:100%;border-radius:14px;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,.3);font:15px/1.55 system-ui,-apple-system,sans-serif;'
+      + (dark ? 'background:#0f172a;color:#e2e8f0;border:1px solid #334155' : 'background:#fff;color:#0f172a;border:1px solid #e2e8f0');
+    box.innerHTML = '<p style="margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#C2410C">New update</p>'
+      + '<h2 id="pwNoticeTitle" style="margin:0 0 10px;font-size:22px;line-height:1.25">Pitwall Beta v1.2.4</h2>'
+      + '<ul style="margin:0 0 18px;padding-left:20px">'
+      + '<li>Forgotten passwords can now be reset by your Pitwall admin, with a one-time password.</li>'
+      + '<li>A password reset signs that account out everywhere, for better security.</li>'
+      + '<li>Behind-the-scenes reliability and speed improvements.</li></ul>';
+    var ok = document.createElement('button');
+    ok.type = 'button'; ok.textContent = 'Got it';
+    ok.style.cssText = 'font:600 15px system-ui,-apple-system,sans-serif;min-height:40px;padding:0 18px;border-radius:10px;border:0;background:#C2410C;color:#fff;cursor:pointer';
+    function close() { try { localStorage.setItem('pwNotice', NOTICE_ID); } catch (e) {} wrap.remove(); document.removeEventListener('keydown', esc); }
+    function esc(e) { if (e.key === 'Escape') close(); }
+    ok.onclick = close;
+    wrap.addEventListener('click', function (e) { if (e.target === wrap) close(); });
+    document.addEventListener('keydown', esc);
+    box.appendChild(ok); wrap.appendChild(box); document.body.appendChild(wrap); ok.focus();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', notice); else notice();
+
+  if (location.pathname.indexOf('/pitwall/app/login') !== 0) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', lookUp); else lookUp();
+  }
+})();
+
+</script>
+<style>
+.roles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin:0;padding:0;list-style:none}
+.roles li{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--muted)}
+.roles b{display:block;color:var(--ink);font-size:14px}
+.invite{background:var(--surface);border:2px solid var(--accent);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.invite pre{margin:0;white-space:pre-wrap;font:14px/1.5 ui-monospace,Menlo,monospace;background:var(--bg);border-radius:8px;padding:12px;overflow-wrap:anywhere}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pill{display:inline-block;font-size:12px;font-weight:600;border-radius:999px;padding:2px 9px;background:var(--bg);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.tbl{overflow-x:auto;border-radius:12px}
+td select{min-height:36px;padding:4px 8px;width:auto}
+dl.acct{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:0}
+dl.acct dt{color:var(--muted);font-size:13px} dl.acct dd{margin:0;font-weight:600}
+section{display:flex;flex-direction:column;gap:10px}
+</style>
+</head>
+<body>
+<main class="wide" id="welcomeBox" hidden>
+  <div class="brand"><svg width="26" height="26" viewBox="0 0 26 26" fill="none" stroke="#C2410C" stroke-width="2" aria-hidden="true"><path d="M3 9h20M3 17h20M9 3v20M17 3v20"/></svg>Pitwall<span class="ver">Beta v1.2</span></div>
+  <h1 id="wTitle">Welcome</h1>
+  <p class="lede">Choose your own password to finish setting up your login. Only you will know it.</p>
+  <form id="wForm" novalidate style="max-width:420px">
+    <div class="field"><label for="wPw">New password</label><input id="wPw" type="password" autocomplete="new-password" placeholder="At least 8 characters"></div>
+    <div class="field"><label for="wPw2">Type it again</label><input id="wPw2" type="password" autocomplete="new-password"></div>
+    <p class="err" id="wErr" role="alert" hidden></p>
+    <button class="btn primary" type="submit">Save and continue</button>
+  </form>
+</main>
+
+<main class="wide" id="mainBox" hidden>
+  <p><a href="/pitwall/app/">← Back to Pitwall</a></p>
+  <h1 id="pageTitle">Team</h1>
+  <p class="lede" id="pageLede"></p>
+
+  <section id="peopleBox" hidden>
+    <h2>People</h2>
+    <div class="tbl"><table><thead><tr><th>Name</th><th>Username</th><th>Role</th><th id="thLast">Last sign-in</th><th></th></tr></thead><tbody id="rows"><tr><td colspan="5">Loading…</td></tr></tbody></table></div>
+  </section>
+
+  <section id="inviteBox" hidden>
+    <div class="invite" role="status">
+      <strong id="inviteTitle">Login ready</strong>
+      <pre id="inviteText"></pre>
+      <div class="row"><button class="btn primary" type="button" id="copyInvite">Copy message</button><span class="muted">Send it by text or email. They’ll choose their own password when they first sign in.</span></div>
+    </div>
+  </section>
+
+  <section id="addBox" hidden>
+    <h2 id="add">Add someone</h2>
+    <ul class="roles">
+      <li><b>Staff</b>Works support tickets for every customer.</li>
+      <li><b>Editor</b>Staff, plus connects and syncs MyGeotab databases and imports data.</li>
+      <li><b>Admin</b>Everything, including adding and removing people.</li>
+      <li><b>Fleet manager</b>A customer’s login. Sees only their own company’s vehicles and help requests.</li>
+    </ul>
+    <form id="addForm" class="grid" novalidate>
+      <div class="field"><label for="aName">Name</label><input id="aName" autocomplete="off"></div>
+      <div class="field"><label for="aRole">Role</label><select id="aRole"><option value="staff">Staff</option><option value="editor">Editor</option><option value="admin">Admin</option><option value="customer">Fleet manager (customer)</option></select></div>
+      <div class="field" id="aCustRow" hidden><label for="aCust">Their company</label><select id="aCust"></select></div>
+      <div class="field"><label for="aUser">Username</label><input id="aUser" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="e.g. jsmith"></div>
+      <div class="field"><label for="aPass">Starting password</label><input id="aPass" type="text" autocomplete="off" spellcheck="false"></div>
+      <button class="btn primary" type="submit">Add person</button>
+    </form>
+    <p class="muted" id="noCust" hidden>To add a fleet manager, first connect their company’s MyGeotab database under <a href="/pitwall/app/#data">Data</a>. Each database becomes a customer here.</p>
+  </section>
+
+  <section>
+    <h2>Your account</h2>
+    <dl class="acct" id="acct"></dl>
+    <form id="pwForm" class="grid" novalidate>
+      <div class="field"><label for="curPw">Current password</label><input id="curPw" type="password" autocomplete="current-password"></div>
+      <div class="field"><label for="newPw">New password</label><input id="newPw" type="password" autocomplete="new-password" placeholder="At least 8 characters"></div>
+      <button class="btn" type="submit">Change password</button>
+    </form>
+  </section>
+  <section><div class="row"><button class="btn" id="out" type="button">Sign out</button></div></section>
+</main>
+<p class="toast" id="toast" role="status" hidden></p>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); }, me = null, customers = [], people = [];
+  var ROLE = { admin:'Admin', editor:'Editor', staff:'Staff', customer:'Fleet manager' };
+  function esc(v){ return String(v == null ? '' : v).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function call(path, body){ return fetch(path, { method: body ? 'POST' : 'GET', headers:{'Content-Type':'application/json'}, body: body ? JSON.stringify(body) : undefined }).then(function(r){ if (r.status === 401) { location.href = '/pitwall/app/login'; throw new Error(''); } return r.json().then(function(j){ if (!r.ok) throw new Error(j.error || 'Something went wrong.'); return j; }); }); }
+  function toast(m){ var t = $('toast'); t.textContent = m; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(function(){ t.hidden = true; }, 4500); }
+  function custName(id){ for (var i = 0; i < customers.length; i++) if (customers[i].id === id) return customers[i].name; return 'their company'; }
+  function genPw(){ var a = 'abcdefghjkmnpqrstuvwxyz23456789', b = new Uint32Array(12), o = ''; crypto.getRandomValues(b); for (var i = 0; i < 12; i++) { o += a[b[i] % a.length]; if (i === 3 || i === 7) o += '-'; } return o; }
+  function when(iso){ if (!iso) return ''; var d = new Date(iso); return d.toLocaleDateString('en-US', {month:'short', day:'numeric'}) + ', ' + d.toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit'}); }
+  function signInUrl(){ return location.origin + '/pitwall/app/login'; }
+
+  function showInvite(name, username, password, isReset){
+    var text = 'Hi ' + name.split(' ')[0] + ',\n\n' + (isReset ? 'Your Pitwall password was reset.' : 'Here’s your Pitwall login.') + '\n\nSign in: ' + signInUrl() + '\nUsername: ' + username + '\n' + (isReset ? 'Temporary password: ' : 'Starting password: ') + password + '\n\nYou’ll choose your own password the first time you sign in.';
+    $('inviteTitle').textContent = (isReset ? 'New password for ' : 'Login ready for ') + name;
+    $('inviteText').textContent = text; $('inviteBox').hidden = false;
+    $('inviteBox').scrollIntoView({behavior:'smooth', block:'center'});
+  }
+
+  function render(){
+    var admin = me.role === 'admin', cust = me.role === 'customer';
+    $('pageTitle').textContent = cust ? 'My account' : 'Team';
+    $('pageLede').textContent = cust ? 'Your Pitwall login for ' + custName(me.customerId) + '.' : admin ? 'Everyone who can sign in to Pitwall: your staff, and each customer’s fleet managers.' : 'Everyone on the Pitwall team. Ask an admin to add or remove people.';
+    document.title = cust ? 'Pitwall · My account' : 'Pitwall team';
+    $('peopleBox').hidden = cust; $('addBox').hidden = !admin; $('thLast').hidden = !admin;
+    $('acct').innerHTML = '<dt>Name</dt><dd>' + esc(me.name) + '</dd><dt>Username</dt><dd>' + esc(me.username) + '</dd><dt>Role</dt><dd>' + esc(ROLE[me.role] || me.role) + '</dd>' + (cust ? '<dt>Company</dt><dd>' + esc(custName(me.customerId)) + '</dd>' : '');
+    if (cust) return;
+    var order = { admin:0, editor:1, staff:2, customer:3 };
+    $('rows').innerHTML = people.slice().sort(function(a, b){ return (order[a.role] - order[b.role]) || String(a.name).localeCompare(b.name); }).map(function(u){
+      var role = esc(ROLE[u.role] || u.role || '');
+      if (u.role === 'customer') role = 'Fleet manager <span class="pill">' + esc(custName(u.customerId)) + '</span>';
+      else if (admin && !u.isMe) role = '<select data-role="' + esc(u.id) + '" aria-label="Role for ' + esc(u.name) + '">' + ['staff','editor','admin'].map(function(r){ return '<option value="' + r + '"' + (u.role === r ? ' selected' : '') + '>' + ROLE[r] + '</option>'; }).join('') + '</select>';
+      var last = u.lastLoginAt ? when(u.lastLoginAt) : '<span class="muted">Not yet</span>';
+      return '<tr><td>' + esc(u.name) + (u.isMe ? ' <span class="muted">(you)</span>' : '') + '</td><td>' + esc(u.username || '') + '</td><td>' + role + '</td>' + (admin ? '<td>' + last + '</td>' : '<td hidden></td>') + '<td class="r">'
+        + (admin && !u.isMe ? '<button class="btn sm" data-reset="' + esc(u.id) + '" data-n="' + esc(u.name) + '" data-u="' + esc(u.username) + '">Reset password</button> <button class="btn sm" data-rm="' + esc(u.id) + '" data-n="' + esc(u.name) + '">Remove</button>' : '') + '</td></tr>';
+    }).join('');
+    $('aCust').innerHTML = customers.map(function(c){ return '<option value="' + esc(c.id) + '">' + esc(c.name) + '</option>'; }).join('');
+    var custOpt = $('aRole').querySelector('option[value="customer"]');
+    custOpt.disabled = !customers.length; $('noCust').hidden = !!customers.length;
+    $('aCustRow').hidden = $('aRole').value !== 'customer';
+  }
+  function load(){
+    return call('/pitwall/app/api/state').then(function(s){
+      me = s.user;
+      if (me.mustChangePassword) { $('wTitle').textContent = 'Welcome, ' + me.name.split(' ')[0]; $('welcomeBox').hidden = false; $('mainBox').hidden = true; $('wPw').focus(); return; }
+      $('mainBox').hidden = false; $('welcomeBox').hidden = true;
+      return Promise.all([call('/pitwall/app/api/users'), call('/pitwall/app/api/db', { op:'list', path:'customers' })]).then(function(r){
+        people = r[0].users; customers = r[1].docs.map(function(d){ return { id:d.id, name:d.data.name || d.id }; }).sort(function(a, b){ return a.name.localeCompare(b.name); });
+        render();
+        if (!$('aPass').value) $('aPass').value = genPw();
+        if (location.hash === '#add' && me.role === 'admin') { $('aRole').value = customers.length ? 'customer' : 'staff'; render(); $('aName').focus(); }
+      });
+    }).catch(function(e){ if (e.message) toast(e.message); });
+  }
+
+  document.addEventListener('click', function(ev){
+    var b = ev.target.closest('button'); if (!b) return;
+    if (b.id === 'out') return call('/pitwall/app/api/logout', {}).then(function(){ location.href = '/pitwall/app/login'; });
+    if (b.id === 'copyInvite') { var t = $('inviteText').textContent; if (navigator.clipboard) navigator.clipboard.writeText(t).then(function(){ toast('Copied. Paste it into a text or email.'); }, function(){ toast('Select the text and copy it.'); }); return; }
+    if (b.dataset.rm) {
+      if (!b.dataset.confirm) { b.dataset.confirm = '1'; b.textContent = 'Confirm: remove ' + b.dataset.n; setTimeout(function(){ if (b.isConnected) { delete b.dataset.confirm; b.textContent = 'Remove'; } }, 5000); return; }
+      return call('/pitwall/app/api/users/remove', { id: b.dataset.rm }).then(function(){ toast(b.dataset.n + ' can no longer sign in.'); load(); }, function(e){ toast(e.message); });
+    }
+    if (b.dataset.reset) {
+      if (!b.dataset.confirm) { b.dataset.confirm = '1'; b.textContent = 'Confirm reset'; setTimeout(function(){ if (b.isConnected) { delete b.dataset.confirm; b.textContent = 'Reset password'; } }, 5000); return; }
+      var np = genPw();
+      return call('/pitwall/app/api/users/password', { id: b.dataset.reset, password: np }).then(function(){ showInvite(b.dataset.n, b.dataset.u, np, true); load(); }, function(e){ toast(e.message); });
+    }
+  });
+  document.addEventListener('change', function(ev){
+    var s = ev.target;
+    if (s.id === 'aRole') { $('aCustRow').hidden = s.value !== 'customer'; return; }
+    if (s.dataset && s.dataset.role) call('/pitwall/app/api/users/update', { id: s.dataset.role, role: s.value }).then(function(){ toast('Role changed. It takes effect the next time they sign in.'); load(); }, function(e){ toast(e.message); load(); });
+  });
+  $('aName').addEventListener('input', function(){
+    var u = $('aUser'); if (u.dataset.touched) return;
+    var parts = $('aName').value.trim().toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/).filter(Boolean);
+    u.value = parts.length > 1 ? parts[0][0] + parts[parts.length - 1] : (parts[0] || '');
+  });
+  $('aUser').addEventListener('input', function(){ this.dataset.touched = '1'; });
+  $('addForm').addEventListener('submit', function(ev){ ev.preventDefault();
+    var name = $('aName').value.trim(), un = $('aUser').value.trim().toLowerCase(), pw = $('aPass').value, role = $('aRole').value;
+    if (!name) return toast('Enter their name.');
+    call('/pitwall/app/api/users', { name: name, username: un, password: pw, role: role, customerId: role === 'customer' ? $('aCust').value : undefined })
+      .then(function(){ showInvite(name, un, pw, false); $('addForm').reset(); delete $('aUser').dataset.touched; $('aPass').value = genPw(); return load(); }, function(e){ toast(e.message); });
+  });
+  $('pwForm').addEventListener('submit', function(ev){ ev.preventDefault();
+    call('/pitwall/app/api/users/password', { current: $('curPw').value, password: $('newPw').value }).then(function(){ toast('Password changed.'); $('curPw').value = ''; $('newPw').value = ''; }, function(e){ toast(e.message); });
+  });
+  $('wForm').addEventListener('submit', function(ev){ ev.preventDefault();
+    var a = $('wPw').value, b2 = $('wPw2').value, err = $('wErr');
+    if (a.length < 8) { err.textContent = 'Use at least 8 characters.'; err.hidden = false; return; }
+    if (a !== b2) { err.textContent = 'Those two don’t match.'; err.hidden = false; return; }
+    call('/pitwall/app/api/users/password', { password: a }).then(function(){ location.href = '/pitwall/app/'; }, function(e){ err.textContent = e.message; err.hidden = false; });
+  });
+  load();
+})();
+</script>
+</body>
+</html>
